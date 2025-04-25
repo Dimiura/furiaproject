@@ -304,7 +304,7 @@
   .chat-input button:hover {
     background-color: black;
     color: white;
-  }
+  } 
 
   .icon-button {
     background-color: transparent;
