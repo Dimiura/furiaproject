@@ -16,18 +16,11 @@ import headerFuria from './components/headerFuria.vue'
 </script>
 
 <style>
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: Arial, sans-serif;
-  background-color: #343541;
-}
+
 
 .app {
   height: 100vh;
   width: 100%;
-  background-color: #000000b0;
   display: flex;
   flex-direction: column;
 }
