@@ -542,5 +542,19 @@
     opacity: 0;
   }
 }
+
+@media screen and (max-width:768px){
+  .chatbot-container__wrapper {
+    max-width: 100%;
+    min-width: 100%;
+    padding: 0 1rem;
+  }
+
+  .chatbot_container_full {
+    max-width: 100%;
+    min-width: 100%;
+    padding: 0 1rem;
+  }
+}
  
 </style>
