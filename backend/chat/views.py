@@ -4,9 +4,12 @@ from rest_framework.permissions import AllowAny
 from django.conf import settings
 import google.generativeai as genai
 from rest_framework import serializers
-from rest_framework.generics import ListCreateAPIView
-from .models import ChatHistory
+from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
+from .models import ChatHistory, Message
 from .serializers import ChatHistorySerializer
+import openai
+import requests
+
 
 
 class ChatBotView(APIView):
@@ -14,6 +17,7 @@ class ChatBotView(APIView):
 
     def post(self, request):
         messages = request.data.get('messages', [])
+        chat_id = request.data.get('chat_id', None)
 
         user_message = next(
             (msg['content'] for msg in reversed(messages) if msg['role'] == 'user'),
@@ -21,9 +25,10 @@ class ChatBotView(APIView):
         )
 
         if not user_message:
-            return Response({"reply": "Envie sua pergunta sobre a FURIA!"})
-
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+            return Response({"reply": "Envie sua pergunta sobre a FURIA!"}, status=400)
+        
+        openai.api_key = settings.OPENAI_API_KEY
+        openai.api_base = "https://openrouter.ai/api/v1" 
 
         system_instruction = (
             "Você é o FuriosoBOT, um bot especialista e fã número 1 da equipe de Counter-Strike da FURIA Esports. "
@@ -33,24 +38,41 @@ class ChatBotView(APIView):
             "Seja objetivo, mas com emoção. E se tiver algum detalhe importante sobre o coach, estratégia, mudança na lineup ou vitória marcante, comenta também!"
         )
 
-        model = genai.GenerativeModel(
-            "gemini-1.5-pro-latest",
-            system_instruction=system_instruction
-        )
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "openai/gpt-3.5-turbo",  
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_message},
+            ]
+        }
 
         try:
-            response = model.generate_content(user_message)
-            reply = response.text
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
 
-            ChatHistory.objects.create(
-                user_message=user_message,
-                bot_response=reply
-            )
+            bot_response = data['choices'][0]['message']['content']
+
+            if chat_id:
+                try:
+                    chat = ChatHistory.objects.get(pk=chat_id)
+                except ChatHistory.DoesNotExist:
+                    return Response({"error": "Conversa não encontrada"}, status=404)
+            else:
+                chat = ChatHistory.objects.create(user_message=user_message, bot_response=bot_response)
+
+            Message.objects.create(chat=chat, role="user", content=user_message)
+            Message.objects.create(chat=chat, role="assistant", content=bot_response)
 
         except Exception as e:
-            reply = f"Erro ao gerar resposta: {str(e)}"
+            bot_response = f"Erro ao gerar resposta: {str(e)}"
 
-        return Response({"reply": reply})
+        return Response({"reply": bot_response, "chat_id": chat.id})
     
 
 class ChatHistorySerializer(serializers.ModelSerializer):
@@ -58,6 +80,34 @@ class ChatHistorySerializer(serializers.ModelSerializer):
         model = ChatHistory
         fields = ['id', 'user_message', 'bot_response', 'timestamp']
 
-class ChatHistoryView(ListCreateAPIView):
-    queryset = ChatHistory.objects.all().order_by('-timestamp')  
-    serializer_class = ChatHistorySerializer        
+class ChatHistoryDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            chat = ChatHistory.objects.get(pk=pk)
+            messages = chat.messages.order_by('timestamp').values('role', 'content', 'timestamp')
+            return Response({"id": chat.id, "messages": list(messages)})
+        except ChatHistory.DoesNotExist:
+            return Response({"error": "Chat not found"}, status=404)
+
+class NewChatView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        return Response({"id": None})
+    
+class RecentChatHistoryView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        recent_chats = ChatHistory.objects.order_by('-timestamp')[:5]
+        data = [
+            {
+                "id": chat.id,
+                "summary": chat.messages.last().content if chat.messages.exists() else "Sem mensagens ainda",
+                "timestamp": chat.timestamp,
+            }
+            for chat in recent_chats
+        ]
+        return Response(data)
