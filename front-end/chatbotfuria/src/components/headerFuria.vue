@@ -3,14 +3,15 @@
         <div class="container">
             <div class="container-fluid">
                 <div class="d-flex justify-content-between text-center align-items-center">
-                    <nav class="nav-link d-flex gap-3">
+                    <nav class="nav-link d-flex gap-3 align-items-center d-flex ">
                         <a href="https://www.furia.gg/" class="text-white text-decoration-none text-uppercase " target="_blank"><i>Site Furia</i></a>
+                        <button class="theme-toggle" @click="toggleTheme" v-html="isDarkMode ? '<i class=\'bi bi-moon-fill\'></i>' : '<i class=\'bi bi-brightness-alt-high-fill\'></i>'">
+                        </button>
                     </nav>
                     <a href="https://www.furia.gg/" target="_blank"> 
                     <img src="../assets/logo-furia-white.png" alt="Logo da Furia" width="88" height="32"
                         fetchpriority="high"></a>
-                        <button class="theme-toggle" @click="toggleTheme" v-html="isDarkMode ? '<i class=\'bi bi-moon-fill\'></i>' : '<i class=\'bi bi-brightness-alt-high-fill\'></i>'">
-                        </button>
+
                 </div>
             </div>
         </div>
@@ -61,9 +62,7 @@
         transition: width 0.3s ease-in-out;
     }
 
-    .nav-link:hover::after {
-        width: 100%;
-    }
+  
 
     body {
         background-color: #121212;
@@ -78,17 +77,35 @@
 
 
 <script>
-    export default {
-        data() {
-            return {
-                isDarkMode: false
-            };
+export default {
+    data() {
+        return {
+            isDarkMode: false,
+        };
+    },
+    methods: {
+        toggleTheme() {
+            this.isDarkMode = !this.isDarkMode;
+            document.body.classList.toggle('light-mode', this.isDarkMode);
         },
-        methods: {
-            toggleTheme() {
-                this.isDarkMode = !this.isDarkMode;
-                document.body.classList.toggle('light-mode', this.isDarkMode);
+        async logout() {
+            try {
+                const refreshToken = localStorage.getItem("refresh");
+                if (refreshToken) {
+                    await fetch("http://localhost:8000/auth/logout/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ refresh: refreshToken }),
+                    });
+                }
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+
+                this.$router.push("/login");
+            } catch (err) {
+                console.error("Erro ao realizar logout:", err);
             }
-        }
-    };
+        },
+    },
+};
 </script>

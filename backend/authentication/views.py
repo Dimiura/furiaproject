@@ -26,3 +26,17 @@ class LoginView(APIView):
                 "access": str(refresh.access_token),
             })
         return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+class LogoutView(APIView):
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response({"error": "Token de refresh não fornecido."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            return Response({"message": "Logout realizado com sucesso!"}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"error": "Erro ao realizar logout."}, status=status.HTTP_400_BAD_REQUEST)    

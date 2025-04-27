@@ -1,29 +1,43 @@
 <template>
-    <div class="chat-layout">
-      <headerFuria />
-      <div class="chat-layout__content">
+  <div class="chat-layout">
+    <headerFuria />
+    <div class="d-flex">
+      <sidebarFuria />
+
+      <div class="chat-layout__content flex-grow-1">
         <router-view />
       </div>
     </div>
-  </template>
-  
-  <script setup>
-  import headerFuria from './headerFuria.vue';
-  </script>
-  
-  <style>
-  .chat-layout {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .chat-layout__content {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow-y: auto;
-    padding: 1rem;
-  }
-  </style>
+  </div>
+</template>
+
+<script>
+import headerFuria from "@/components/headerFuria.vue";
+import sidebarFuria from "@/components/sidebarFuria.vue";
+
+export default {
+  components: {
+    headerFuria,
+    sidebarFuria,
+  },
+};
+</script>
+
+<style>
+.chat-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.chat-layout .d-flex {
+  flex: 1;
+  display: flex;
+}
+
+.chat-layout__content {
+  flex-grow: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+</style>

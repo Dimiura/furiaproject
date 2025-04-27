@@ -114,7 +114,7 @@
             <textarea 
               ref="userInput" 
               v-model="userInput" 
-              placeholder="Pergunte para o FuriosoBOT..." 
+              placeholder="Pergunte para o FuriosoBOT sobre a Furia CS..." 
               rows="1"
               @input="autoResize"  
               @keydown.enter.prevent="handleEnter"

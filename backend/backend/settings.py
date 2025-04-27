@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'chat', 
     'corsheaders',
     'authentication',
+    'rest_framework_simplejwt.token_blacklist'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
