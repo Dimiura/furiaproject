@@ -4,8 +4,9 @@
       <i :class="isExpanded ? 'bi bi-arrow-bar-left' : 'bi bi-arrow-bar-right'"></i>
     </button>
 
-    <p class="text-center fs-6 mt-5"> <strong> Histórico de mensagens </strong> </p>
     <ul class="list-group p-3" v-if="isExpanded">
+    <p class="text-center fs-6 mt-5"> <strong> Histórico de mensagens </strong> </p>
+
       <li 
         v-for="chat in recentChats" 
         :key="chat.id" 
@@ -14,8 +15,8 @@
       >
       {{ truncate(chat.summary, 50) }}
       </li>
-      <li class="list-group-item logout-item mb-5 p-1">
-        <button class="btn w-100" @click="newChat">Novo chat</button>
+      <li class="list-group-item new-chat mb-5 p-1  mt-auto">
+        <button class=" btn w-100 text-light  " @click="newChat">+ Novo chat</button>
       </li>
       <li class="list-group-item logout-item mb-5 p-1">
         <button class="btn w-100" @click="logout">Logout</button>
@@ -117,7 +118,7 @@ export default {
   padding: 0;
 }
 
-.sidebar .list-group-item {
+.sidebar .list-group-item  {
   background-color: transparent;
   border: none;
   color: #fff;
@@ -129,6 +130,18 @@ export default {
   background-color: #3b3b3b;
 }
 
+
+.sidebar .list-group-item .new-chat button {
+  border:none;
+}
+
+.sidebar .list-group-item .new-chat {
+  background-color: white;
+  border: none;
+  color: #fff;
+  text-align: center;
+  transition: background-color 0.3s ease;
+}
 
 
 .logout-item {

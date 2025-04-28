@@ -7,6 +7,7 @@
                         <a href="https://www.furia.gg/" class="text-white text-decoration-none text-uppercase " target="_blank"><i>Site Furia</i></a>
                         <button class="theme-toggle" @click="toggleTheme" v-html="isDarkMode ? '<i class=\'bi bi-moon-fill\'></i>' : '<i class=\'bi bi-brightness-alt-high-fill\'></i>'">
                         </button>
+                        <button class="btn btn-secondary"> Know your fan </button>
                     </nav>
                     <a href="https://www.furia.gg/" target="_blank"> 
                     <img src="../assets/logo-furia-white.png" alt="Logo da Furia" width="88" height="32"

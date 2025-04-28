@@ -1,0 +1,17 @@
+
+services:
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
+
+  frontend:
+    build: ./front-end/chatbotfuria
+    ports:
+      - "3000:3000"
+    command: npm run dev 
+    volumes:
+      - ./front-end/chatbotfuria:/app
+      - /app/node_modules
