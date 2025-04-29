@@ -69,7 +69,7 @@
             }),
           });
           if (!response.ok) throw new Error("Registro falhou");
-          this.$router.push("/login"); // Redirecionar após registro
+          this.$router.push("/login"); 
         } catch (err) {
           this.error = "Erro ao registrar";
         }

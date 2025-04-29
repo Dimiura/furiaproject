@@ -232,6 +232,12 @@
       }
     },
     async sendMessage() {
+
+      const title = document.querySelector('.title'); 
+        if (title) {
+            title.style.display = 'none'; 
+      }
+
         if (this.isTyping || !this.userInput.trim()) return;
 
         const userMessage = { role: "user", content: this.userInput };
@@ -258,7 +264,6 @@
 
             const data = await response.json();
 
-            // Atualiza o chatId se for uma nova conversa
             if (!this.chatId) {
                 this.chatId = data.chat_id;
                 this.$router.push({ path: "/", query: { chatId: this.chatId } });
@@ -266,7 +271,6 @@
 
             this.messages.push({ role: "assistant", content: data.reply });
 
-            // Atualiza o histórico de mensagens
             await this.fetchChatHistory(this.chatId);
         } catch (error) {
             console.error("Erro ao enviar mensagem:", error);
@@ -287,7 +291,7 @@
     },
     startTypingEffect(message) {
       setTimeout(() => {
-        this.isTyping = false; // Remove o indicador de "digitando"
+        this.isTyping = false; 
         this.messages.push({ role: "assistant", content: message });
         this.$nextTick(() => {
           const container = this.$refs.messagesContainer;
@@ -538,7 +542,7 @@
 
 
   .message-wrapper.assistant {
-  justify-content: flex-start; /* Alinha à esquerda */
+  justify-content: flex-start; 
 }
 
 .typing-indicator {

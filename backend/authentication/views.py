@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegisterSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from rest_framework.permissions import IsAuthenticated
 
 class RegisterView(APIView):
     def post(self, request):
@@ -40,3 +41,13 @@ class LogoutView(APIView):
             return Response({"message": "Logout realizado com sucesso!"}, status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response({"error": "Erro ao realizar logout."}, status=status.HTTP_400_BAD_REQUEST)    
+
+class UserInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "name": user.username, 
+            "email": user.email
+        }, status=status.HTTP_200_OK)            

@@ -5,6 +5,7 @@
     </button>
 
     <ul class="list-group p-3" v-if="isExpanded">
+  
     <p class="text-center fs-6 mt-5"> <strong> Histórico de mensagens </strong> </p>
 
       <li 
@@ -32,15 +33,14 @@ export default {
     return {
       isExpanded: true,
       recentChats: [], 
+      userName: "",
     };
   },
   methods: {
-
-    methods: {
-      openChat(chatId) {
-        this.$router.push({ path: "/", query: { chatId } });
-        window.location.reload(); 
-      },
+   
+    openChat(chatId) {
+      this.$router.push({ path: "/", query: { chatId } });
+      window.location.reload(); 
     },
     toggleSidebar() {
       this.isExpanded = !this.isExpanded;

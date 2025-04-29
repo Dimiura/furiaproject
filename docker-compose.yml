@@ -6,6 +6,8 @@ services:
     ports:
       - "8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app 
 
   frontend:
     build: ./front-end/chatbotfuria
