@@ -33,11 +33,29 @@ export default {
 .chat-layout .d-flex {
   flex: 1;
   display: flex;
+  overflow: hidden;
 }
 
 .chat-layout__content {
   flex-grow: 1;
   padding: 1rem;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #787878 transparent;
 }
+
+.container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.container::-webkit-scrollbar-thumb {
+  background-color: #787878;
+  border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+
 </style>

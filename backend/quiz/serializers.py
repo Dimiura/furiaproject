@@ -4,4 +4,9 @@ from .models import QuizEntry
 class QuizEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizEntry
-        fields = ['id', 'full_name', 'instagram_handle', 'twitter_handle', 'created_at']
+        fields = '__all__'
+        extra_kwargs = {
+            'user': {'read_only': True},
+            'validation_result': {'read_only': True},
+            'validation_details': {'read_only': True}
+        }

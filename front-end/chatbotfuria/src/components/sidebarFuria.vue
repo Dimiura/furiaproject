@@ -6,18 +6,24 @@
 
     <ul class="list-group p-3" v-if="isExpanded">
   
-    <p class="text-center fs-6 mt-5"> <strong> Histórico de mensagens </strong> </p>
+      <p v-if="!isQuizPage" class="text-center fs-6 mt-5">
+        <strong>Histórico de mensagens</strong>
+      </p>
 
       <li 
+        v-if="!isQuizPage"
         v-for="chat in recentChats" 
         :key="chat.id" 
-        class="list-group-item chat-item p-2 border-bottom border-top rounded-0 m-2 "
+        class="list-group-item chat-item p-2 m-2"
         @click="openChat(chat.id)"
       >
-      {{ truncate(chat.summary, 50) }}
+        {{ truncate(chat.summary, 20) }}
       </li>
-      <li class="list-group-item new-chat mb-5 p-1  mt-auto">
-        <button class=" btn w-100 text-light  " @click="newChat">+ Novo chat</button>
+
+      <li class="list-group-item new-chat mb-5 p-1 mt-auto">
+        <button class="btn w-100 text-light" @click="handleNewChatOrRedirect">
+          {{ isQuizPage ? "Ir para o ChatBot" : "+ Novo chat" }}
+        </button>
       </li>
       <li class="list-group-item logout-item mb-5 p-1">
         <button class="btn w-100" @click="logout">Logout</button>
@@ -36,17 +42,27 @@ export default {
       userName: "",
     };
   },
+  computed: {
+    isQuizPage() {
+      return this.$route.path === "/quiz/"; 
+    },
+  },
   methods: {
-   
     openChat(chatId) {
       this.$router.push({ path: "/", query: { chatId } });
-      window.location.reload(); 
     },
     toggleSidebar() {
       this.isExpanded = !this.isExpanded;
     },
     async newChat() {
-      this.$router.push({ path: "/", query: { chatId: null } });
+      this.$router.push({ path: "" });
+    },
+    handleNewChatOrRedirect() {
+      if (this.isQuizPage) {
+        this.$router.push("/"); 
+      } else {
+        this.newChat(); 
+      }
     },
     truncate(text, maxLength) {
       if (!text) return "";
@@ -68,15 +84,12 @@ export default {
         console.error("Erro ao buscar histórico recente:", error);
       }
     },
-    openChat(chatId) {
-      this.$router.push({ path: "/", query: { chatId } }); 
-    },
   },
   watch: {
     "$route.query.chatId": {
       immediate: true,
       handler() {
-        this.fetchRecentChats(); 
+        this.fetchRecentChats();
       },
     },
   },
@@ -105,7 +118,8 @@ export default {
   flex-direction: column;
   align-items: center;
   transition: width 0.3s ease; 
-  overflow: hidden;
+  overflow-y: auto;
+  height:100%;
 }
 
 .sidebar.collapsed {
@@ -124,10 +138,12 @@ export default {
   color: #fff;
   text-align: center;
   transition: background-color 0.3s ease;
+  border-radius:10px;
 }
 
 .sidebar .list-group-item:hover {
   background-color: #3b3b3b;
+  border-radius:10px;
 }
 
 

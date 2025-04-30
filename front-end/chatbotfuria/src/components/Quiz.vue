@@ -1,6 +1,6 @@
 <template>
-  <div class="container py-5">
-    <div class="card bg-transparent text-white border-0 p-3 mb-5 ">
+  <div class="container py-2">
+    <div class="card bg-transparent text-white border-0 p-3 mb-3 ">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-start mb-4 gap-3">
           <h1 class="card-title text-center mb-0 p-0">Que tipo de fã você é?</h1>
@@ -11,6 +11,14 @@
           <img src="../assets/logo-furia-white.png" width="auto" height="20" />
           ao preencher o formulário
         </p>
+
+        <div v-if="successMessage" class="alert alert-success">
+          {{ successMessage }}
+        </div>
+
+        <div v-if="errorMessage" class="alert alert-danger">
+          {{ errorMessage }}
+        </div>
 
         <form @submit.prevent="submitForm">
           <div class="mb-4">
@@ -45,7 +53,7 @@
             <div class="mb-3">
               <label class="form-label">Adquiriu algum produto da FURIA no último ano?</label>
               <div class="form-check">
-                <input v-model="form.buy" class="form-check-input" type="radio" id="buyYes" value="yes" />
+                <input v-model="form.buy" class="form-check-input" type="radio" id="buyYes" value="yes" required />
                 <label class="form-check-label" for="buyYes">Sim</label>
               </div>
               <div class="form-check">
@@ -62,7 +70,7 @@
             <div class="mb-3">
               <label class="form-label">Esteve presente em algum evento da FURIA?</label>
               <div class="form-check">
-                <input v-model="form.attendedEvent" class="form-check-input" type="radio" id="eventYes" value="yes" />
+                <input v-model="form.attendedEvent" class="form-check-input" type="radio" id="eventYes" value="yes" required />
                 <label class="form-check-label" for="eventYes">Sim</label>
               </div>
               <div class="form-check">
@@ -109,7 +117,9 @@
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png"
                 @change="validateFiles"
+                required
               />
+              <small class="text-muted">Envie a frente e verso do documento (2 arquivos)</small>
             </div>
 
             <div v-if="showModal" class="modal-backdrop">
@@ -131,7 +141,7 @@
               </div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-5">
               <div class="form-check">
                 <input v-model="form.acceptLgpd" class="form-check-input" type="checkbox" id="acceptLgpd" required />
                 <label class="form-check-label" for="acceptLgpd">
@@ -141,8 +151,8 @@
             </div>
 
             <div class="d-grid">
-              <button type="submit" class="btn">
-                Enviar
+              <button type="submit" class="btn" :disabled="loading">
+                {{ loading ? 'Enviando...' : 'Enviar' }}
               </button>
             </div>
           </div>
@@ -172,75 +182,186 @@ export default {
         acceptLgpd: false,
       },
       socials: [
-        { label: "LinkedIn", value: "linkedin" },
-        { label: "Instagram", value: "instagram" },
-        { label: "Facebook", value: "facebook" },
         { label: "Twitter (X)", value: "twitter" },
         { label: "Reddit", value: "reddit" }
       ],
       showModal: false,
+      successMessage: '',
+      errorMessage: '',
+      loading: false
     };
   },
   methods: {
+    applyCpfMask(event) {
+      let value = event.target.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.substring(0, 11);
+      
+      value = value.replace(/(\d{3})(\d)/, '$1.$2');
+      value = value.replace(/(\d{3})(\d)/, '$1.$2');
+      value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      
+      this.form.cpf = value;
+    },
     validateFiles(event) {
-    const files = event.target.files;
-
-    if (files.length > 2) {
-      alert("Você pode enviar no máximo 2 arquivos.");
-      event.target.value = ""; 
-    }
-  },
+      const documents = event.target.files;
+      if (documents.length !== 2) {
+        this.errorMessage = "Você precisa enviar exatamente 2 arquivos (frente e verso).";
+        event.target.value = "";
+      } else {
+        this.errorMessage = "";
+      }
+    },
     async submitForm() {
+      console.log("[1] Iniciando envio do formulário");
+      this.loading = true;
+      this.successMessage = '';
+      this.errorMessage = '';
+      
       try {
-        const formData = new FormData();
-
-        formData.append('fullName', this.form.fullName);
-        formData.append('email', this.form.email);
-        formData.append('cpf', this.form.cpf);
-        formData.append('buy', this.form.buy);
-        formData.append('buyDetails', this.form.buyDetails);
-        formData.append('attendedEvent', this.form.attendedEvent);
-        formData.append('eventCount', this.form.eventCount);
-        formData.append('allowConversationHistory', this.form.allowConversationHistory);
-        formData.append('acceptLgpd', this.form.acceptLgpd);
-
-        this.form.selectedSocials.forEach((social) => {
-          formData.append(`socialLinks[${social}]`, this.form.socialLinks[social]);
-        });
+        // Validação básica antes de enviar
+        if (!this.form.acceptLgpd) {
+          this.errorMessage = "Você deve aceitar os termos da LGPD";
+          this.loading = false;
+          return;
+        }
 
         const fileInput = this.$refs.documentFile;
-      if (fileInput && fileInput.files.length > 0) {
-        Array.from(fileInput.files).forEach((file) => {
-          formData.append('documents', file); 
-        });
-      }
-        const response = await fetch('http://localhost:8000/api/formulario/', {
-          method: 'POST',
-          body: formData,
+        if (!fileInput || fileInput.files.length !== 2) {
+          this.errorMessage = "Envie exatamente 2 arquivos (frente e verso)";
+          this.loading = false;
+          return;
+        }
+
+        console.log("[2] Criando FormData");
+        const formData = new FormData();
+        
+        // Adiciona todos os campos do formulário
+        formData.append('full_name', this.form.fullName);
+        formData.append('email', this.form.email);
+        formData.append('cpf', this.form.cpf.replace(/\D/g, ''));
+        formData.append('rg', this.form.rg.replace(/\D/g, ''));
+        formData.append('buy', this.form.buy);
+        formData.append('buy_details', this.form.buyDetails || '');
+        formData.append('attended_event', this.form.attendedEvent);
+        formData.append('event_count', this.form.eventCount || '');
+        formData.append('allow_conversation_history', this.form.allowConversationHistory);
+        formData.append('accept_lgpd', this.form.acceptLgpd);
+
+        // Adiciona redes sociais
+        this.form.selectedSocials.forEach(social => {
+          formData.append(`social_links[${social}]`, this.form.socialLinks[social] || '');
         });
 
+        // Adiciona arquivos
+        for (let i = 0; i < fileInput.files.length; i++) {
+          formData.append('documents', fileInput.files[i]);
+        }
+
+        console.log("[3] Preparando requisição");
+        let accessToken = localStorage.getItem("access");
+        
+        const makeRequest = async () => {
+          console.log("[4] Enviando para o backend");
+          const headers = {
+            'Authorization': `Bearer ${accessToken}`
+          };
+          
+          return await fetch('http://localhost:8000/api/v1/quiz/formulario/', {
+            method: 'POST',
+            body: formData,
+            headers: headers
+          });
+        };
+
+        console.log("[5] Fazendo requisição principal"); 
+        let response = await makeRequest();
+        console.log("[6] Resposta recebida:", response.status);
+
+        if (response.status === 401) {
+          console.log("[7] Tentando refresh token");
+          const refreshToken = localStorage.getItem("refresh");
+          const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+
+          if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            localStorage.setItem("access", data.access);
+            accessToken = data.access;
+
+            response = await makeRequest();
+          } else {
+            this.errorMessage = "Sessão expirada. Faça login novamente.";
+            this.loading = false;
+            return;
+          }
+        }
+
+        const result = await response.json();
+        console.log("[8] Resultado completo:", result);
+
         if (response.ok) {
-          alert('Formulário enviado com sucesso!');
+          this.successMessage = "Formulário enviado e validado com sucesso!";
+          console.log("Resposta completa do servidor:", result);
+          
+          if (result.validation_result) {
+            console.log("Detalhes da validação:", {
+              valid: result.validation_result.valid,
+              message: result.validation_result.message
+            });
+          }
+          
+          // Limpar formulário após sucesso
+          this.resetForm();
         } else {
-          alert('Erro ao enviar o formulário.');
+          if (result.validation_details) {
+            this.errorMessage = `Validação falhou: ${result.validation_details}`;
+          } else {
+            this.errorMessage = result?.error || "Erro ao enviar o formulário.";
+          }
+          
+          console.error("Erro detalhado:", result);
         }
       } catch (error) {
-        console.error(error);
-        alert('Erro inesperado. Tente novamente.');
+        console.error("Erro completo:", error);
+        this.errorMessage = error.message || "Erro inesperado. Tente novamente.";
+      } finally {
+        this.loading = false;
+        console.log("[9] Processo finalizado"); 
+      }
+    },
+    resetForm() {
+      this.form = {
+        fullName: "",
+        email: "",
+        cpf: "",
+        rg: "", 
+        buy: "",
+        buyDetails: "",
+        attendedEvent: "",
+        eventCount: "",
+        selectedSocials: [],
+        socialLinks: {},
+        allowConversationHistory: false,
+        acceptLgpd: false,
+      };
+      if (this.$refs.documentFile) {
+        this.$refs.documentFile.value = "";
       }
     },
     openModal() {
-    this.showModal = true;
+      this.showModal = true;
     },
     closeModal() {
       this.showModal = false;
     }
-    }
+  }
 };
 </script>
 
 <style scoped>
-
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -267,23 +388,7 @@ export default {
 
 .container {
   max-height: 100vh;
-  overflow-y: auto;
   padding-right: 15px;
-  scrollbar-width: thin;
-  scrollbar-color: #787878 transparent;
-}
-
-.container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.container::-webkit-scrollbar-thumb {
-  background-color: #787878;
-  border-radius: 4px;
-}
-
-.container::-webkit-scrollbar-track {
-  background-color: transparent;
 }
 
 input {
@@ -318,5 +423,29 @@ input:focus {
   border-color: #000;
   transform: scale(1.05);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+  background-color: #666;
+}
+
+.alert {
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.alert-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.alert-danger {
+  background-color: #dc3545;
+  color: white;
 }
 </style>

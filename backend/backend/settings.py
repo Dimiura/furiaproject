@@ -8,6 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 SECRET_KEY = 'django-insecure-+$ia_hpnm*n(dkes#e$@pwmn5@mei5+4aaosfj*&!cu&$k-2y%'
@@ -101,6 +104,9 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 STATIC_URL = 'static/'

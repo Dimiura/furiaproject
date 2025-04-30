@@ -202,6 +202,11 @@
     this.sendMessage(); 
     },
     async fetchChatHistory(chatId) {
+      const title = document.querySelector('.title'); 
+        if (title) {
+            title.style.display = 'none'; 
+      }
+
       try {
         const response = await fetch(`http://localhost:8000/chat/chat-history/${chatId}/`);
         if (!response.ok) {
