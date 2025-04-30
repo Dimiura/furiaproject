@@ -149,7 +149,7 @@ export default {
     }
 
     body.light-mode {
-        background-color: #f2f2f2;
+        background-color: #bababa;
         color: #000;
     }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="container py-2">
-    <div class="card bg-transparent text-white border-0 p-3 mb-3 ">
+    <div class=" bg-transparent border-0 p-3 mb-3 ">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-start mb-4 gap-3">
           <h1 class="card-title text-center mb-0 p-0">Que tipo de fã você é?</h1>
@@ -85,7 +85,7 @@
             </div>
 
             <div class="mb-4">
-              <h4>Redes Sociais</h4>
+              <h4>Conecte suas redes sociais para melhor experiência </h4>
 
               <div v-for="(social, index) in socials" :key="index" class="form-check mb-2">
                 <input class="form-check-input" type="checkbox" :id="social.value" v-model="form.selectedSocials" :value="social.value" />
@@ -119,7 +119,6 @@
                 @change="validateFiles"
                 required
               />
-              <small class="text-muted">Envie a frente e verso do documento (2 arquivos)</small>
             </div>
 
             <div v-if="showModal" class="modal-backdrop">
@@ -155,6 +154,13 @@
                 {{ loading ? 'Enviando...' : 'Enviar' }}
               </button>
             </div>
+
+            <div class="loading-overlay" v-if="loading">
+              <div class="loading-content">
+                <div class="spinner"></div>
+                <p>{{ statusMessage }}</p>
+              </div>
+            </div>
           </div>
         </form>
       </div>
@@ -168,6 +174,7 @@ export default {
   data() {
     return {
       form: {
+        statusMessage: '', 
         fullName: "",
         email: "",
         cpf: "",
@@ -203,9 +210,9 @@ export default {
       this.form.cpf = value;
     },
     validateFiles(event) {
-      const documents = event.target.files;
-      if (documents.length !== 2) {
-        this.errorMessage = "Você precisa enviar exatamente 2 arquivos (frente e verso).";
+        const documents = event.target.files;
+          if (documents.length === 0) {
+        this.errorMessage = "Você precisa enviar ao menos 1 documento.";
         event.target.value = "";
       } else {
         this.errorMessage = "";
@@ -213,12 +220,14 @@ export default {
     },
     async submitForm() {
       console.log("[1] Iniciando envio do formulário");
+
+      this.statusMessage = "Recebendo arquivos...";
       this.loading = true;
+
       this.successMessage = '';
       this.errorMessage = '';
       
       try {
-        // Validação básica antes de enviar
         if (!this.form.acceptLgpd) {
           this.errorMessage = "Você deve aceitar os termos da LGPD";
           this.loading = false;
@@ -226,16 +235,15 @@ export default {
         }
 
         const fileInput = this.$refs.documentFile;
-        if (!fileInput || fileInput.files.length !== 2) {
-          this.errorMessage = "Envie exatamente 2 arquivos (frente e verso)";
-          this.loading = false;
-          return;
-        }
+        if (!fileInput || fileInput.files.length === 0) {
+        this.errorMessage = "Envie pelo menos 1 documento.";
+        this.loading = false;
+        return;
+      }
 
         console.log("[2] Criando FormData");
         const formData = new FormData();
         
-        // Adiciona todos os campos do formulário
         formData.append('full_name', this.form.fullName);
         formData.append('email', this.form.email);
         formData.append('cpf', this.form.cpf.replace(/\D/g, ''));
@@ -247,21 +255,21 @@ export default {
         formData.append('allow_conversation_history', this.form.allowConversationHistory);
         formData.append('accept_lgpd', this.form.acceptLgpd);
 
-        // Adiciona redes sociais
         this.form.selectedSocials.forEach(social => {
           formData.append(`social_links[${social}]`, this.form.socialLinks[social] || '');
         });
 
-        // Adiciona arquivos
         for (let i = 0; i < fileInput.files.length; i++) {
           formData.append('documents', fileInput.files[i]);
         }
 
         console.log("[3] Preparando requisição");
+        this.statusMessage = "Enviando dados para validação...";
         let accessToken = localStorage.getItem("access");
         
         const makeRequest = async () => {
           console.log("[4] Enviando para o backend");
+          this.statusMessage = "Validando identificação...";
           const headers = {
             'Authorization': `Bearer ${accessToken}`
           };
@@ -279,6 +287,7 @@ export default {
 
         if (response.status === 401) {
           console.log("[7] Tentando refresh token");
+          this.statusMessage = "Atualizando sessão e revalidando...";
           const refreshToken = localStorage.getItem("refresh");
           const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
             method: "POST",
@@ -301,9 +310,11 @@ export default {
 
         const result = await response.json();
         console.log("[8] Resultado completo:", result);
+        this.statusMessage = "Concluído!";
+
 
         if (response.ok) {
-          this.successMessage = "Formulário enviado e validado com sucesso!";
+          this.successMessage = "Documentos validados e recebidos com sucesso!";
           console.log("Resposta completa do servidor:", result);
           
           if (result.validation_result) {
@@ -313,7 +324,6 @@ export default {
             });
           }
           
-          // Limpar formulário após sucesso
           this.resetForm();
         } else {
           if (result.validation_details) {
@@ -448,4 +458,49 @@ input:focus {
   background-color: #dc3545;
   color: white;
 }
+
+.loading-overlay {
+  position:absolute ;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #121212;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.loading-overlay .light-mode {
+
+  background-color:#bababa;
+}
+
+.loading-content {
+  text-align: center;
+  color: #333;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.spinner {
+  border: 4px solid #ccc;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+
 </style>

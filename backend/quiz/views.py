@@ -26,15 +26,14 @@ class QuizEntryCreateView(generics.CreateAPIView):
         logger.info(f"Método: {request.method}")
         
         try:
-            # Obter arquivos
             files = request.FILES.getlist('documents')
             logger.info(f"Arquivos recebidos: {[f.name for f in files]}")
             logger.info(f"Tamanho dos arquivos: {[f.size for f in files]}")
             logger.info(f"Tipos MIME: {[f.content_type for f in files]}")
 
-            if len(files) != 2:
+            if not (1 <= len(files) <= 2):
                 return Response(
-                    {"error": "Envie exatamente 2 arquivos (frente e verso)."},
+                    {"error": "Envie 1 ou 2 arquivos (frente e/ou verso)."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
