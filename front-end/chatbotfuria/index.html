@@ -23,4 +23,13 @@
       overflow: hidden;
     }    
   </style>
+
+<script>
+  window.addEventListener('message', (event) => {
+    if (event.data.twitterLinked) {
+      window.location.reload();
+    }
+  }, false);
+  </script>
+
 </html>

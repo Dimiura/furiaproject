@@ -17,6 +17,12 @@ SECRET_KEY = 'django-insecure-+$ia_hpnm*n(dkes#e$@pwmn5@mei5+4aaosfj*&!cu&$k-2y%
 
 DEBUG = True
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
+
 ALLOWED_HOSTS = ['0.0.0.0', 'localhost']
 
 INSTALLED_APPS = [
@@ -26,7 +32,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
+    'rest_framework', 
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.twitter',
+    'dj_rest_auth.registration',
     'rest_framework_simplejwt',
     'chat', 
     'quiz',
@@ -35,24 +49,32 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist'
 ]
 
+SITE_ID = 1 
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ),
 }
+
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_AUTHENTICATION_METHOD = 'username'
+ACCOUNT_EMAIL_REQUIRED = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware', 
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware'
-]
+]   
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -113,3 +135,30 @@ STATIC_URL = 'static/'
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'twitter': {
+        'APP': {
+            'client_id': os.getenv('TWITTER_CLIENT_ID'),
+            'secret': os.getenv('TWITTER_CLIENT_SECRET'),
+            'key': '',  
+            'callback_url': 'http://localhost:8000/auth/twitter/callback/'
+        },
+        'SCOPE': ['tweet.read', 'users.read'],
+        'AUTH_PARAMS': {
+            'access_type': 'read',
+            'use_pkce': True  
+        },
+        'VERSION': '2.0' 
+    }
+}
+
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False 
+SESSION_COOKIE_HTTPONLY = True
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_AGE = 3600
+
+SOCIALACCOUNT_AUTO_SIGNUP = False
+
+SOCIALACCOUNT_ADAPTER = 'quiz.adapters.CustomSocialAccountAdapter' 

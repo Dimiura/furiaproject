@@ -85,21 +85,21 @@
             </div>
 
             <div class="mb-4">
-              <h4>Conecte suas redes sociais para melhor experiência </h4>
+              <h4>Conecte suas redes sociais para melhor experiência</h4>
 
-              <div v-for="(social, index) in socials" :key="index" class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" :id="social.value" v-model="form.selectedSocials" :value="social.value" />
-                <label class="form-check-label" :for="social.value">
-                  {{ social.label }}
-                </label>
-
-                <input
-                  v-if="form.selectedSocials.includes(social.value)"
-                  v-model="form.socialLinks[social.value]"
-                  type="text"
-                  class="form-control mt-2"
-                  :placeholder="'Link do ' + social.label"
-                />
+              <!-- Botão de vincular Twitter -->
+              <div class="mb-3">
+                <button 
+                  @click.prevent="linkTwitterAccount" 
+                  class="btn btn-outline-primary d-flex align-items-center gap-2"
+                  :disabled="isTwitterLinked"
+                >
+                  <i class="bi bi-twitter-x"></i>
+                  {{ isTwitterLinked ? 'Conta do Twitter vinculada' : 'Vincular conta do Twitter' }}
+                </button>
+                <small v-if="isTwitterLinked" class="text-muted d-block mt-1">
+                  Conta vinculada com sucesso!
+                </small>
               </div>
             </div>
 
@@ -188,10 +188,8 @@ export default {
         allowConversationHistory: false,
         acceptLgpd: false,
       },
-      socials: [
-        { label: "Twitter (X)", value: "twitter" },
-        { label: "Reddit", value: "reddit" }
-      ],
+      isTwitterLinked: false,
+      twitterUsername: '',
       showModal: false,
       successMessage: '',
       errorMessage: '',
@@ -199,6 +197,90 @@ export default {
     };
   },
   methods: {
+    async linkTwitterAccount() {
+    this.statusMessage = "Preparando vinculação...";
+    this.loading = true;
+    this.successMessage = '';
+    this.errorMessage = '';
+
+    try {
+        let accessToken = localStorage.getItem("access");
+        
+        const makeRequest = async () => {
+            this.statusMessage = "Conectando com Twitter...";
+            const headers = {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            };
+            
+            return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/start/', {
+                headers: headers,
+                credentials: 'include'
+            });
+        };
+
+        let response = await makeRequest();
+
+        if (response.status === 401) {
+            this.statusMessage = "Atualizando sessão...";
+            const refreshToken = localStorage.getItem("refresh");
+            const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh: refreshToken }),
+                credentials: 'include'
+            });
+
+            if (refreshResponse.ok) {
+                const data = await refreshResponse.json();
+                localStorage.setItem("access", data.access);
+                accessToken = data.access;
+                response = await makeRequest();
+            } else {
+                this.errorMessage = "Sessão expirada. Faça login novamente.";
+                this.loading = false;
+                return;
+            }
+        }
+
+        const result = await response.json();
+        console.log("Response from /start:", result);
+
+        if (!response.ok) {
+            throw new Error(result.error || "Erro ao iniciar vinculação");
+        }
+
+        this.statusMessage = "Abrindo Twitter...";
+        
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        const popup = window.open(
+            result.auth_url,
+            'twitter_auth',
+            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+        
+        const checkPopup = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkPopup);
+                this.checkTwitterStatus().then(() => {
+                    if (!this.isTwitterLinked) {
+                        console.log("Vinculação falhou");
+                    }
+                });
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error("Erro completo:", error);
+        this.errorMessage = error.message || "Erro inesperado ao conectar com Twitter.";
+    } finally {
+        this.loading = false;
+    }
+},
     applyCpfMask(event) {
       let value = event.target.value.replace(/\D/g, '');
       if (value.length > 11) value = value.substring(0, 11);
@@ -366,8 +448,88 @@ export default {
     },
     closeModal() {
       this.showModal = false;
+    },
+    async checkTwitterStatus() {
+    try {
+      let accessToken = localStorage.getItem("access");
+      
+      const makeRequest = async () => {
+        const headers = {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        };
+        
+        return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/status/', {
+          headers: headers,
+          credentials: 'include'
+        });
+      };
+
+      let response = await makeRequest();
+
+      if (response.status === 401) {
+        console.log("[Twitter Status] Token expirado, tentando refresh...");
+        const refreshToken = localStorage.getItem("refresh");
+        const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+          method: "POST",
+          headers: { 
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh: refreshToken }),
+          credentials: 'include'
+        });
+
+        if (refreshResponse.ok) {
+          const data = await refreshResponse.json();
+          localStorage.setItem("access", data.access);
+          accessToken = data.access;
+          console.log("[Twitter Status] Token atualizado, repetindo requisição...");
+          
+          response = await makeRequest();
+        } else {
+          console.log("[Twitter Status] Sessão expirada ao verificar status");
+          this.errorMessage = "Sua sessão expirou. Por favor, faça login novamente.";
+          return;
+        }
+      }
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("[Twitter Status] Resposta OK:", result);
+        this.isTwitterLinked = result.linked || false;
+        this.twitterUsername = result.username || '';
+        
+        if (this.isTwitterLinked) {
+          this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
+        } else {
+          this.errorMessage = result.error || "Falha ao verificar status do Twitter";
+        }
+      } else {
+        console.error("[Twitter Status] Erro na resposta:", result);
+        this.errorMessage = result.error || "Erro ao verificar status do Twitter";
+      }
+    } catch (error) {
+      console.error("[Twitter Status] Erro completo:", error);
+      this.errorMessage = "Erro inesperado ao verificar status";
+    } finally {
+      this.loading = false;
     }
+  },
+  },
+  mounted() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('twitter_linked')) {
+    this.isTwitterLinked = true;
+    this.twitterUsername = urlParams.get('username');
+    
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
   }
+  
+  this.checkTwitterStatus();
+}
 };
 </script>
 

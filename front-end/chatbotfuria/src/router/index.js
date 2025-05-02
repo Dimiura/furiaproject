@@ -4,6 +4,7 @@ import ChatLayout from "@/components/chatLayout.vue";
 import chatBotAI from "@/components/chatBotAI.vue";
 import Quiz from "@/components/Quiz.vue"; // <-- Importa o novo componente
 import { createRouter, createWebHistory } from "vue-router";
+import TempPage from "@/components/TempPage.vue";
 
 function isAuthenticated() {
   return !!localStorage.getItem("access"); 
@@ -21,6 +22,16 @@ const routes = [
     ],
     meta: { requiresAuth: true }
   },
+  {
+    path: '/terms',
+    component: TempPage ,
+    meta: { title: 'Termos de Serviço' }
+  },
+  {
+    path: '/privacy',
+    component:  TempPage,
+    meta: { title: 'Política de Privacidade' }
+  }
 ];
 
 const router = createRouter({
