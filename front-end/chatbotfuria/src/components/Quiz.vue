@@ -1,6 +1,7 @@
+
 <template>
   <div class="container py-2">
-    <div class=" bg-transparent border-0 p-3 mb-3 ">
+    <div class="bg-transparent border-0 p-3 mb-3">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-start mb-4 gap-3">
           <h1 class="card-title text-center mb-0 p-0">Que tipo de fã você é?</h1>
@@ -9,7 +10,6 @@
         <p class="text-start">
           Garanta sua carteirinha de torcedor 
           <img src="../assets/logo-furia-white.png" width="auto" height="20" />
-          ao preencher o formulário
         </p>
 
         <div v-if="successMessage" class="alert alert-success">
@@ -20,7 +20,9 @@
           {{ errorMessage }}
         </div>
 
-        <form @submit.prevent="submitForm">
+        
+
+        <form @submit.prevent="submitForm" v-if="!hasExistingEntry" >
           <div class="mb-4">
             <div class="mb-3">
               <label for="fullName" class="form-label">Nome completo</label>
@@ -87,7 +89,6 @@
             <div class="mb-4">
               <h4>Conecte suas redes sociais para melhor experiência</h4>
 
-              <!-- Botão de vincular Twitter -->
               <div class="mb-3">
                 <button 
                   @click.prevent="linkTwitterAccount" 
@@ -97,9 +98,7 @@
                   <i class="bi bi-twitter-x"></i>
                   {{ isTwitterLinked ? 'Conta do Twitter vinculada' : 'Vincular conta do Twitter' }}
                 </button>
-                <small v-if="isTwitterLinked" class="text-muted d-block mt-1">
-                  Conta vinculada com sucesso!
-                </small>
+               
               </div>
             </div>
 
@@ -121,15 +120,7 @@
               />
             </div>
 
-            <div v-if="showModal" class="modal-backdrop">
-              <div class="modal-content-custom">
-                <h5 class="mb-3">Instruções para envio do documento</h5>
-                <p>
-                  Por favor, envie uma foto da <strong>frente e verso</strong> do seu RG ou CPF para validação de identidade.
-                </p>
-                <button class="btn mt-3" @click="closeModal">Entendi</button>
-              </div>
-            </div>
+            
 
             <div class="mb-4">
               <div class="form-check">
@@ -154,16 +145,147 @@
                 {{ loading ? 'Enviando...' : 'Enviar' }}
               </button>
             </div>
+           
+          </div>
+        </form>
+
+        <div v-if="showModal" class="modal-backdrop">
+              <div class="modal-content-custom">
+                <h5 class="mb-3">Instruções para envio do documento</h5>
+                <p>
+                  Por favor, envie uma foto da <strong>frente e verso</strong> do seu RG ou CPF para validação de identidade.
+                </p>
+                <button class="btn mt-3" @click="closeModal">Entendi</button>
+              </div>
+            </div>
 
             <div class="loading-overlay" v-if="loading">
               <div class="loading-content">
                 <div class="spinner"></div>
                 <p>{{ statusMessage }}</p>
               </div>
+            </div>    
+
+      </div>
+      <div v-if="currentEntry" class="row">
+          <div class="col-md-6">
+            <div class="card mb-4">
+              <div class="card-header bg-dark text-white">
+                <h5>Seu perfil atual</h5>
+              </div>
+              <div class="card-body">
+                <div v-if="currentFanProfile">
+                  <h6 class="text-muted">Nível de Torcedor:</h6>
+                  <p class="h4" :class="fanLevelClass">
+                    {{ fanLevelDisplay }}
+                  </p>
+                  
+                  <div class="mt-4">
+                    <h6 class="text-muted">Detalhes:</h6>
+                    <ul class="list-group list-group-flush">
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Eventos FURIA
+                        <span>{{ currentEntry.event_count || 0 }}</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Compras no último ano
+                        <span>{{ currentEntry.buy === 'yes' ? 'Sim' : 'Não' }}</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Twitter vinculado
+                        <span>{{ isTwitterLinked ? 'Sim' : 'Não' }}</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Mensagens no chat
+                        <span>{{ chatMessageCount }}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div v-else>
+                  <p>Carregando seu perfil...</p>
+                </div>
+              </div>
             </div>
           </div>
-        </form>
-      </div>
+
+          <div class="col-md-6">
+            <div class="card mb-4">
+              <div class="card-header bg-dark text-white">
+                <h5>Atualizar perfil</h5>
+              </div>
+              <div class="card-body">
+                <button 
+                  @click="updateTwitterData"
+                  class="btn btn-outline-primary mb-3 w-100"
+                  :disabled="updatingTwitter"
+                >
+                  <span v-if="updatingTwitter">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Atualizando...
+                  </span>
+                  <span v-else>
+                    <i class="bi bi-arrow-repeat"></i> Atualizar dados do Twitter
+                  </span>
+                </button>
+
+                <div class="mb-3">
+                  <label class="form-label">Atualizar número de eventos</label>
+                  <input 
+                    v-model="updateData.event_count" 
+                    type="number" 
+                    class="form-control" 
+                    min="0"
+                  >
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Atualizar status de compras</label>
+                  <select v-model="updateData.buy" class="form-select">
+                    <option value="yes">Sim</option>
+                    <option value="no">Não</option>
+                  </select>
+                </div>
+
+                <div v-if="updateData.buy === 'yes'" class="mb-3">
+                  <label class="form-label">Detalhes das compras</label>
+                  <input 
+                    v-model="updateData.buy_details" 
+                    type="text" 
+                    class="form-control"
+                    placeholder="Quais produtos adquiriu?"
+                  >
+                </div>
+
+                <div class="form-check mb-3">
+                  <input 
+                    v-model="updateData.allow_conversation_history" 
+                    class="form-check-input" 
+                    type="checkbox"
+                    id="updateChatHistory"
+                  >
+                  <label class="form-check-label" for="updateChatHistory">
+                    Usar meu histórico de chat para análise
+                  </label>
+                </div>
+
+                <button 
+                  @click="submitUpdate"
+                  class="btn btn-primary w-100"
+                  :disabled="updatingProfile"
+                >
+                  <span v-if="updatingProfile">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Atualizando...
+                  </span>
+                  <span v-else>
+                    Atualizar Informações
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
     </div>
   </div>
 </template>
@@ -196,7 +318,213 @@ export default {
       loading: false
     };
   },
+  computed: {
+    fanLevelDisplay() {
+      if (!this.currentEntry) return '';
+      const levels = {
+        'hardcore_fan': 'Fanático',
+        'super_fan': 'Super Fã',
+        'regular_fan': 'Fã Regular',
+        'casual_fan': 'Fã Casual',
+        'not_fan': 'Iniciante'
+      };
+      return levels[this.currentEntry.fan_level] || this.currentEntry.fan_level;
+    },
+    fanLevelClass() {
+      if (!this.currentEntry) return '';
+      return this.currentEntry.fan_level || 'not_fan';
+    }
+  },
   methods: {
+
+    async checkExistingEntry() {
+      try {
+        // Resetar estados antes de verificar
+        this.hasExistingEntry = false;
+        this.currentEntry = null;
+        this.currentFanProfile = null;
+        
+        this.loading = true;
+        const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access')}`
+          },
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          await this.handleTokenRefresh();
+          return this.checkExistingEntry(); 
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          this.hasExistingEntry = data.exists;
+          if (data.exists) {
+            this.currentEntry = data.entry;
+            this.updateData = { 
+              event_count: data.entry.event_count || 0,
+              buy: data.entry.buy || 'no',
+              buy_details: data.entry.buy_details || '',
+              allow_conversation_history: data.entry.allow_conversation_history || false
+            };
+            await Promise.all([
+              this.loadFanProfile(),
+              this.loadChatHistory()
+            ]);
+          } else {
+            // Limpe os dados se não existir cadastro
+            this.resetForm();
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar cadastro:", error);
+        this.errorMessage = "Erro ao carregar perfil";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async handleTokenRefresh() {
+      try {
+        const refreshToken = localStorage.getItem("refresh");
+        const response = await fetch("http://localhost:8000/chat/refresh/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem("access", data.access);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Erro ao atualizar token:", error);
+        return false;
+      }
+    },
+
+    async loadFanProfile() {
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access')}`
+          },
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          this.currentFanProfile = await response.json();
+        }
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error);
+      }
+    },
+
+    async loadChatHistory() {
+    try {
+      const response = await fetch('http://localhost:8000/chat/history-count/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access')}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.status === 401) {
+            this.statusMessage = "Atualizando sessão...";
+            const refreshToken = localStorage.getItem("refresh");
+            const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh: refreshToken }),
+                credentials: 'include'
+            });
+
+            if (refreshResponse.ok) {
+                const data = await refreshResponse.json();
+                localStorage.setItem("access", data.access);
+                accessToken = data.access;
+                response = await makeRequest();
+            } else {
+                this.errorMessage = "Sessão expirada. Faça login novamente.";
+                this.loading = false;
+                return;
+            }
+        }
+
+      if (response.ok) {
+        const data = await response.json();
+        this.chatMessageCount = data.count || 0;
+       
+      }
+    } catch (error) {
+      console.error("Erro ao carregar histórico:", error);
+    }
+  },
+
+    async refreshTwitterValidation() {
+        this.loading = true;
+        this.statusMessage = "Atualizando dados do Twitter...";
+        
+        try {
+          const response = await fetch('http://localhost:8000/api/v1/quiz/refresh-validation/', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access')}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            this.successMessage = `Perfil revalidado! Novo nível: ${data.new_level} (Score: ${data.new_score})`;
+            
+            if (data.twitter_data.follows_furia) {
+              this.currentFanProfile.twitter.follows_furia = true;
+            }
+          } else {
+            const error = await response.json();
+            this.errorMessage = error.error || "Erro ao atualizar";
+          }
+        } catch (error) {
+          this.errorMessage = "Erro de conexão";
+        } finally {
+          this.loading = false;
+        }
+      },
+
+    async submitUpdate() {
+      try {
+        this.updatingProfile = true;
+        const response = await fetch('http://localhost:8000/api/v1/quiz/update-entry/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.updateData),
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          this.successMessage = "Perfil atualizado com sucesso!";
+          await this.checkExistingEntry(); 
+        } else {
+          const error = await response.json();
+          this.errorMessage = error.message || "Erro ao atualizar";
+        }
+      } catch (error) {
+        this.errorMessage = "Erro na conexão";
+        console.error(error);
+      } finally {
+        this.updatingProfile = false;
+      }
+    },
+
     async linkTwitterAccount() {
     this.statusMessage = "Preparando vinculação...";
     this.loading = true;
@@ -500,14 +828,7 @@ export default {
         this.isTwitterLinked = result.linked || false;
         this.twitterUsername = result.username || '';
         
-        if (this.isTwitterLinked) {
-          this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
-        } else {
-          this.errorMessage = result.error || "Falha ao verificar status do Twitter";
-        }
-      } else {
-        console.error("[Twitter Status] Erro na resposta:", result);
-        this.errorMessage = result.error || "Erro ao verificar status do Twitter";
+       
       }
     } catch (error) {
       console.error("[Twitter Status] Erro completo:", error);
@@ -518,22 +839,46 @@ export default {
   },
   },
   mounted() {
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('twitter_linked')) {
-    this.isTwitterLinked = true;
-    this.twitterUsername = urlParams.get('username');
+
+    this.resetForm();
+
+    this.checkExistingEntry();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('twitter_linked')) {
+      this.isTwitterLinked = true;
+      this.twitterUsername = urlParams.get('username');
+      
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
+    }
     
-    window.history.replaceState({}, document.title, window.location.pathname);
-    
-    this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
+    this.checkTwitterStatus();
   }
-  
-  this.checkTwitterStatus();
-}
 };
 </script>
 
 <style scoped>
+
+.hardcore_fan {
+  color: #dc3545;
+  font-weight: bold;
+}
+.super_fan {
+  color: #ffc107;
+}
+.regular_fan {
+  color: #0d6efd;
+}
+.casual_fan {
+  color: #0dcaf0;
+}
+
+.row {
+  margin-top: 20px;
+}
+
 .modal-backdrop {
   position: fixed;
   top: 0;

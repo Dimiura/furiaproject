@@ -137,11 +137,11 @@ def twitter_auth_callback(request: HttpRequest):
 @permission_classes([IsAuthenticated])
 def check_twitter_status(request):
     try:
-        linked_account = TwitterLinkedAccount.objects.filter(user=request.user).first()
+        twitter_account = TwitterLinkedAccount.objects.get(user=request.user)
         return Response({
-            'linked': bool(linked_account),
-            'username': linked_account.twitter_username if linked_account else None,
-            'details': linked_account.extra_data if linked_account else None
+            'linked': True,
+            'username': twitter_account.twitter_username,
+            'extra_data': twitter_account.extra_data
         })
-    except Exception as e:
-        return Response({'error': str(e)}, status=400)
+    except TwitterLinkedAccount.DoesNotExist:
+        return Response({'linked': False})

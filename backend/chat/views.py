@@ -2,13 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.conf import settings
+from rest_framework.permissions import IsAuthenticated
 import google.generativeai as genai
+from django.db.models import Count, Q
 from rest_framework import serializers
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from .models import ChatHistory, Message
 from .serializers import ChatHistorySerializer
 import openai
 import requests
+from rest_framework.decorators import api_view, permission_classes
 
 
 
@@ -116,3 +119,28 @@ class RecentChatHistoryView(APIView):
             for chat in recent_chats
         ]
         return Response(data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def message_count(request):
+    
+    try:
+        counts = Message.objects.filter(
+            Q(chat__user=request.user) | Q(chat__user__isnull=True)
+        ).aggregate(
+            total=Count('id'),
+            user_messages=Count('id', filter=Q(role='user')),
+            bot_messages=Count('id', filter=Q(role='assistant'))
+        )
+        
+        chat_sessions = ChatHistory.objects.filter(user=request.user).count()
+        
+        return Response({
+            'count': counts['total'],
+            'user_messages': counts['user_messages'],
+            'bot_messages': counts['bot_messages'],
+            'chat_sessions': chat_sessions
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
