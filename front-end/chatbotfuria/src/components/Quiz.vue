@@ -12,17 +12,15 @@
           <img src="../assets/logo-furia-white.png" width="auto" height="20" />
         </p>
 
-        <div v-if="successMessage" class="alert alert-success">
-          {{ successMessage }}
-        </div>
-
-        <div v-if="errorMessage" class="alert alert-danger">
-          {{ errorMessage }}
-        </div>
-
         
+        <div v-if="hasExistingEntry === null" class="loading-overlay">
+          <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Verificando seu cadastro...</p>
+          </div>
+        </div>
 
-        <form @submit.prevent="submitForm" v-if="!hasExistingEntry" >
+        <form @submit.prevent="submitForm" v-else-if="!hasExistingEntry && !loadingCheck" >
           <div class="mb-4">
             <div class="mb-3">
               <label for="fullName" class="form-label">Nome completo</label>
@@ -149,25 +147,7 @@
           </div>
         </form>
 
-        <div v-if="showModal" class="modal-backdrop">
-              <div class="modal-content-custom">
-                <h5 class="mb-3">Instruções para envio do documento</h5>
-                <p>
-                  Por favor, envie uma foto da <strong>frente e verso</strong> do seu RG ou CPF para validação de identidade.
-                </p>
-                <button class="btn mt-3" @click="closeModal">Entendi</button>
-              </div>
-            </div>
-
-            <div class="loading-overlay" v-if="loading">
-              <div class="loading-content">
-                <div class="spinner"></div>
-                <p>{{ statusMessage }}</p>
-              </div>
-            </div>    
-
-      </div>
-      <div v-if="currentEntry" class="row">
+        <div class="row" v-else-if="hasExistingEntry && currentEntry">
           <div class="col-md-6">
             <div class="card mb-4">
               <div class="card-header bg-dark text-white">
@@ -177,8 +157,9 @@
                 <div v-if="currentFanProfile">
                   <h6 class="text-muted">Nível de Torcedor:</h6>
                   <p class="h4" :class="fanLevelClass">
-                    {{ fanLevelDisplay }}
+                    {{ currentEntry.fan_analysis.title }}
                   </p>
+                  <p class="mb-3">{{ currentEntry.fan_analysis.description }}</p>
                   
                   <div class="mt-4">
                     <h6 class="text-muted">Detalhes:</h6>
@@ -286,578 +267,606 @@
             </div>
           </div>
         </div>
+
+        <div v-if="showModal" class="modal-backdrop">
+              <div class="modal-content-custom">
+                <h5 class="mb-3">Instruções para envio do documento</h5>
+                <p>
+                  Por favor, envie uma foto da <strong>frente e verso</strong> do seu RG ou CPF para validação de identidade.
+                </p>
+                <button class="btn mt-3" @click="closeModal">Entendi</button>
+              </div>
+            </div>
+
+            <div class="loading-overlay" v-if="loading">
+              <div class="loading-content">
+                <div class="spinner"></div>
+                <p>{{ statusMessage }}</p>
+              </div>
+            </div>    
+      </div>
+      
     </div>
   </div>
 </template>
 
 <script>
-export default {
-  name: "Quiz",
-  data() {
-    return {
-      form: {
-        statusMessage: '', 
-        fullName: "",
-        email: "",
-        cpf: "",
-        rg: "", 
-        buy: "",
-        buyDetails: "",
-        attendedEvent: "",
-        eventCount: "",
-        selectedSocials: [],
-        socialLinks: {},
-        allowConversationHistory: false,
-        acceptLgpd: false,
-      },
-      isTwitterLinked: false,
-      twitterUsername: '',
-      showModal: false,
-      successMessage: '',
-      errorMessage: '',
-      loading: false
-    };
-  },
-  computed: {
-    fanLevelDisplay() {
-      if (!this.currentEntry) return '';
-      const levels = {
-        'hardcore_fan': 'Fanático',
-        'super_fan': 'Super Fã',
-        'regular_fan': 'Fã Regular',
-        'casual_fan': 'Fã Casual',
-        'not_fan': 'Iniciante'
-      };
-      return levels[this.currentEntry.fan_level] || this.currentEntry.fan_level;
-    },
-    fanLevelClass() {
-      if (!this.currentEntry) return '';
-      return this.currentEntry.fan_level || 'not_fan';
-    }
-  },
-  methods: {
-
-    async checkExistingEntry() {
-      try {
-        // Resetar estados antes de verificar
-        this.hasExistingEntry = false;
-        this.currentEntry = null;
-        this.currentFanProfile = null;
-        
-        this.loading = true;
-        const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access')}`
-          },
-          credentials: 'include'
-        });
-
-        if (response.status === 401) {
-          await this.handleTokenRefresh();
-          return this.checkExistingEntry(); 
-        }
-
-        if (response.ok) {
-          const data = await response.json();
-          this.hasExistingEntry = data.exists;
-          if (data.exists) {
-            this.currentEntry = data.entry;
-            this.updateData = { 
-              event_count: data.entry.event_count || 0,
-              buy: data.entry.buy || 'no',
-              buy_details: data.entry.buy_details || '',
-              allow_conversation_history: data.entry.allow_conversation_history || false
-            };
-            await Promise.all([
-              this.loadFanProfile(),
-              this.loadChatHistory()
-            ]);
-          } else {
-            // Limpe os dados se não existir cadastro
-            this.resetForm();
-          }
-        }
-      } catch (error) {
-        console.error("Erro ao verificar cadastro:", error);
-        this.errorMessage = "Erro ao carregar perfil";
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async handleTokenRefresh() {
-      try {
-        const refreshToken = localStorage.getItem("refresh");
-        const response = await fetch("http://localhost:8000/chat/refresh/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh: refreshToken }),
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("access", data.access);
-          return true;
-        }
-        return false;
-      } catch (error) {
-        console.error("Erro ao atualizar token:", error);
-        return false;
-      }
-    },
-
-    async loadFanProfile() {
-      try {
-        const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access')}`
-          },
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          this.currentFanProfile = await response.json();
-        }
-      } catch (error) {
-        console.error("Erro ao carregar perfil:", error);
-      }
-    },
-
-    async loadChatHistory() {
-    try {
-      const response = await fetch('http://localhost:8000/chat/history-count/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access')}`
+  export default {
+    name: "Quiz",
+    data() {
+      return {
+        hasExistingEntry: null,
+        currentEntry: null,
+        currentFanProfile: null,
+        loadingCheck: true,
+        form: {
+          statusMessage: '', 
+          fullName: "",
+          email: "",
+          cpf: "",
+          rg: "", 
+          buy: "",
+          buyDetails: "",
+          attendedEvent: "",
+          eventCount: "",
+          selectedSocials: [],
+          socialLinks: {},
+          allowConversationHistory: false,
+          acceptLgpd: false,
         },
-        credentials: 'include'
-      });
-
-      if (response.status === 401) {
-            this.statusMessage = "Atualizando sessão...";
-            const refreshToken = localStorage.getItem("refresh");
-            const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refresh: refreshToken }),
-                credentials: 'include'
-            });
-
-            if (refreshResponse.ok) {
-                const data = await refreshResponse.json();
-                localStorage.setItem("access", data.access);
-                accessToken = data.access;
-                response = await makeRequest();
-            } else {
-                this.errorMessage = "Sessão expirada. Faça login novamente.";
-                this.loading = false;
-                return;
-            }
-        }
-
-      if (response.ok) {
-        const data = await response.json();
-        this.chatMessageCount = data.count || 0;
-       
+        isTwitterLinked: false,
+        twitterUsername: '',
+        showModal: false,
+        successMessage: '',
+        errorMessage: '',
+      };
+    },
+    computed: {
+      fanLevelDisplay() {
+        if (!this.currentEntry) return '';
+        const levels = {
+          'hardcore_fan': 'Fanático',
+          'super_fan': 'Super Fã',
+          'regular_fan': 'Fã Regular',
+          'casual_fan': 'Fã Casual',
+          'not_fan': 'Iniciante'
+        };
+        return levels[this.currentEntry.fan_level] || this.currentEntry.fan_level;
+      },
+      fanLevelClass() {
+        if (!this.currentEntry) return '';
+        return this.currentEntry.fan_level || 'not_fan';
       }
-    } catch (error) {
-      console.error("Erro ao carregar histórico:", error);
-    }
-  },
+    },
+    methods: {
 
-    async refreshTwitterValidation() {
-        this.loading = true;
-        this.statusMessage = "Atualizando dados do Twitter...";
-        
+      async checkExistingEntry() {
         try {
-          const response = await fetch('http://localhost:8000/api/v1/quiz/refresh-validation/', {
-            method: 'POST',
+          
+          this.loadingCheck = true;
+          this.errorMessage = '';
+          
+          this.loading = true;
+          const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access')}`,
-              'Content-Type': 'application/json'
+              'Authorization': `Bearer ${localStorage.getItem('access')}`
             },
+            credentials: 'include'
+          });
+
+          if (response.status === 401) {
+            await this.handleTokenRefresh();
+            return this.checkExistingEntry(); 
+          }
+
+            const data = await response.json();
+            this.hasExistingEntry = data.exists;
+            if (data.exists) {
+              this.currentEntry = data.entry;
+              this.updateData = { 
+                event_count: data.entry.event_count || 0,
+                buy: data.entry.buy || 'no',
+                buy_details: data.entry.buy_details || '',
+                allow_conversation_history: data.entry.allow_conversation_history || false
+              };
+              await Promise.all([
+                this.loadFanProfile(),
+                this.loadChatHistory()
+              ]);
+            }
+        } catch (error) {
+          console.error("Erro ao verificar cadastro:", error);
+          this.errorMessage = "Erro ao carregar perfil";
+          this.hasExistingEntry = false
+        } finally {
+          this.loadingCheck = false;
+        }
+      },
+
+      async handleTokenRefresh() {
+        try {
+          const refreshToken = localStorage.getItem("refresh");
+          const response = await fetch("http://localhost:8000/chat/refresh/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh: refreshToken }),
             credentials: 'include'
           });
 
           if (response.ok) {
             const data = await response.json();
-            this.successMessage = `Perfil revalidado! Novo nível: ${data.new_level} (Score: ${data.new_score})`;
-            
-            if (data.twitter_data.follows_furia) {
-              this.currentFanProfile.twitter.follows_furia = true;
-            }
-          } else {
-            const error = await response.json();
-            this.errorMessage = error.error || "Erro ao atualizar";
+            localStorage.setItem("access", data.access);
+            return true;
           }
+          return false;
         } catch (error) {
-          this.errorMessage = "Erro de conexão";
-        } finally {
-          this.loading = false;
+          console.error("Erro ao atualizar token:", error);
+          return false;
         }
       },
 
-    async submitUpdate() {
-      try {
-        this.updatingProfile = true;
-        const response = await fetch('http://localhost:8000/api/v1/quiz/update-entry/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(this.updateData),
-          credentials: 'include'
-        });
+      async loadFanProfile() {
 
-        if (response.ok) {
-          this.successMessage = "Perfil atualizado com sucesso!";
-          await this.checkExistingEntry(); 
-        } else {
-          const error = await response.json();
-          this.errorMessage = error.message || "Erro ao atualizar";
+        try {
+      let accessToken = localStorage.getItem("access");
+
+          const response = await fetch('http://localhost:8000/api/v1/quiz/check-entry/', {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            this.currentFanProfile = await response.json();
+          }
+        } catch (error) {
+          console.error("Erro ao carregar perfil:", error);
         }
-      } catch (error) {
-        this.errorMessage = "Erro na conexão";
-        console.error(error);
-      } finally {
-        this.updatingProfile = false;
-      }
-    },
+      },
 
-    async linkTwitterAccount() {
-    this.statusMessage = "Preparando vinculação...";
-    this.loading = true;
-    this.successMessage = '';
-    this.errorMessage = '';
+      async loadChatHistory() {
+        try {
+          let accessToken = localStorage.getItem("access");
 
-    try {
-        let accessToken = localStorage.getItem("access");
-        
-        const makeRequest = async () => {
-            this.statusMessage = "Conectando com Twitter...";
-            const headers = {
+            const response = await fetch('http://localhost:8000/chat/history-count/', {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              },
+              credentials: 'include'
+            });
+
+            if (response.status === 401) {
+                  this.statusMessage = "Atualizando sessão...";
+                  const refreshToken = localStorage.getItem("refresh");
+                  const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ refresh: refreshToken }),
+                      credentials: 'include'
+                  });
+
+                  if (refreshResponse.ok) {
+                      const data = await refreshResponse.json();
+                      localStorage.setItem("access", data.access);
+                      accessToken = data.access;
+                      response = await makeRequest();
+                  } else {
+                      this.errorMessage = "Sessão expirada. Faça login novamente.";
+                      this.loading = false;
+                      return;
+                  }
+              }
+
+            if (response.ok) {
+              const data = await response.json();
+              this.chatMessageCount = data.user_message_count || 0;
+            
+            }
+        } catch (error) {
+          console.error("Erro ao carregar histórico:", error);
+        }
+      },
+
+      async refreshTwitterValidation() {
+          this.loading = true;
+          this.statusMessage = "Atualizando dados do Twitter...";
+          
+          try {
+            let accessToken = localStorage.getItem("access");
+            const response = await fetch('http://localhost:8000/api/v1/quiz/refresh-validation/', {
+              method: 'POST',
+              headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
-            };
-            
-            return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/start/', {
-                headers: headers,
-                credentials: 'include'
-            });
-        };
-
-        let response = await makeRequest();
-
-        if (response.status === 401) {
-            this.statusMessage = "Atualizando sessão...";
-            const refreshToken = localStorage.getItem("refresh");
-            const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refresh: refreshToken }),
-                credentials: 'include'
+              },
+              credentials: 'include'
             });
 
-            if (refreshResponse.ok) {
-                const data = await refreshResponse.json();
-                localStorage.setItem("access", data.access);
-                accessToken = data.access;
-                response = await makeRequest();
+            if (response.ok) {
+              const data = await response.json();
+              this.successMessage = `Perfil revalidado! Novo nível: ${data.new_level} (Score: ${data.new_score})`;
+              
+              if (data.twitter_data.follows_furia) {
+                this.currentFanProfile.twitter.follows_furia = true;
+              }
             } else {
-                this.errorMessage = "Sessão expirada. Faça login novamente.";
-                this.loading = false;
-                return;
+              const error = await response.json();
+              this.errorMessage = error.error || "Erro ao atualizar";
             }
+          } catch (error) {
+            this.errorMessage = "Erro de conexão";
+          } finally {
+            this.loading = false;
+          }
+        },
+
+      async submitUpdate() {
+        try {
+          this.updatingProfile = true;
+          let accessToken = localStorage.getItem("access");
+          const response = await fetch('http://localhost:8000/api/v1/quiz/update-entry/', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(this.updateData),
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            this.successMessage = "Perfil atualizado com sucesso!";
+            await this.checkExistingEntry(); 
+          } else {
+            const error = await response.json();
+            this.errorMessage = error.message || "Erro ao atualizar";
+          }
+        } catch (error) {
+          this.errorMessage = "Erro na conexão";
+          console.error(error);
+        } finally {
+          this.updatingProfile = false;
         }
+      },
 
-        const result = await response.json();
-        console.log("Response from /start:", result);
-
-        if (!response.ok) {
-            throw new Error(result.error || "Erro ao iniciar vinculação");
-        }
-
-        this.statusMessage = "Abrindo Twitter...";
-        
-        const width = 600;
-        const height = 700;
-        const left = (window.screen.width - width) / 2;
-        const top = (window.screen.height - height) / 2;
-        
-        const popup = window.open(
-            result.auth_url,
-            'twitter_auth',
-            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-        );
-        
-        const checkPopup = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(checkPopup);
-                this.checkTwitterStatus().then(() => {
-                    if (!this.isTwitterLinked) {
-                        console.log("Vinculação falhou");
-                    }
-                });
-            }
-        }, 500);
-        
-    } catch (error) {
-        console.error("Erro completo:", error);
-        this.errorMessage = error.message || "Erro inesperado ao conectar com Twitter.";
-    } finally {
-        this.loading = false;
-    }
-},
-    applyCpfMask(event) {
-      let value = event.target.value.replace(/\D/g, '');
-      if (value.length > 11) value = value.substring(0, 11);
-      
-      value = value.replace(/(\d{3})(\d)/, '$1.$2');
-      value = value.replace(/(\d{3})(\d)/, '$1.$2');
-      value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-      
-      this.form.cpf = value;
-    },
-    validateFiles(event) {
-        const documents = event.target.files;
-          if (documents.length === 0) {
-        this.errorMessage = "Você precisa enviar ao menos 1 documento.";
-        event.target.value = "";
-      } else {
-        this.errorMessage = "";
-      }
-    },
-    async submitForm() {
-      console.log("[1] Iniciando envio do formulário");
-
-      this.statusMessage = "Recebendo arquivos...";
+      async linkTwitterAccount() {
+      this.statusMessage = "Preparando vinculação...";
       this.loading = true;
-
       this.successMessage = '';
       this.errorMessage = '';
-      
+
       try {
-        if (!this.form.acceptLgpd) {
-          this.errorMessage = "Você deve aceitar os termos da LGPD";
+          let accessToken = localStorage.getItem("access");
+          
+          const makeRequest = async () => {
+              this.statusMessage = "Conectando com Twitter...";
+              const headers = {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+              };
+              
+              return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/start/', {
+                  headers: headers,
+                  credentials: 'include'
+              });
+          };
+
+          let response = await makeRequest();
+
+          if (response.status === 401) {
+              this.statusMessage = "Atualizando sessão...";
+              const refreshToken = localStorage.getItem("refresh");
+              const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ refresh: refreshToken }),
+                  credentials: 'include'
+              });
+
+              if (refreshResponse.ok) {
+                  const data = await refreshResponse.json();
+                  localStorage.setItem("access", data.access);
+                  accessToken = data.access;
+                  response = await makeRequest();
+              } else {
+                  this.errorMessage = "Sessão expirada. Faça login novamente.";
+                  this.loading = false;
+                  return;
+              }
+          }
+
+          const result = await response.json();
+          console.log("Response from /start:", result);
+
+          if (!response.ok) {
+              throw new Error(result.error || "Erro ao iniciar vinculação");
+          }
+
+          this.statusMessage = "Abrindo Twitter...";
+          
+          const width = 600;
+          const height = 700;
+          const left = (window.screen.width - width) / 2;
+          const top = (window.screen.height - height) / 2;
+          
+          const popup = window.open(
+              result.auth_url,
+              'twitter_auth',
+              `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+          );
+          
+          const checkPopup = setInterval(() => {
+              if (popup.closed) {
+                  clearInterval(checkPopup);
+                  this.checkTwitterStatus().then(() => {
+                      if (!this.isTwitterLinked) {
+                          console.log("Vinculação falhou");
+                      }
+                  });
+              }
+          }, 500);
+          
+      } catch (error) {
+          console.error("Erro completo:", error);
+          this.errorMessage = error.message || "Erro inesperado ao conectar com Twitter.";
+      } finally {
+          this.loading = false;
+      }
+  },
+      applyCpfMask(event) {
+        let value = event.target.value.replace(/\D/g, '');
+        if (value.length > 11) value = value.substring(0, 11);
+        
+        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+        value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        
+        this.form.cpf = value;
+      },
+      validateFiles(event) {
+          const documents = event.target.files;
+            if (documents.length === 0) {
+          this.errorMessage = "Você precisa enviar ao menos 1 documento.";
+          event.target.value = "";
+        } else {
+          this.errorMessage = "";
+        }
+      },
+      async submitForm() {
+        console.log("[1] Iniciando envio do formulário");
+
+        this.statusMessage = "Recebendo arquivos...";
+        this.loading = true;
+
+        this.successMessage = '';
+        this.errorMessage = '';
+        
+        try {
+          if (!this.form.acceptLgpd) {
+            this.errorMessage = "Você deve aceitar os termos da LGPD";
+            this.loading = false;
+            return;
+          }
+
+          const fileInput = this.$refs.documentFile;
+          if (!fileInput || fileInput.files.length === 0) {
+          this.errorMessage = "Envie pelo menos 1 documento.";
           this.loading = false;
           return;
         }
 
-        const fileInput = this.$refs.documentFile;
-        if (!fileInput || fileInput.files.length === 0) {
-        this.errorMessage = "Envie pelo menos 1 documento.";
-        this.loading = false;
-        return;
-      }
+          console.log("[2] Criando FormData");
+          const formData = new FormData();
+          
+          formData.append('full_name', this.form.fullName);
+          formData.append('email', this.form.email);
+          formData.append('cpf', this.form.cpf.replace(/\D/g, ''));
+          formData.append('rg', this.form.rg.replace(/\D/g, ''));
+          formData.append('buy', this.form.buy);
+          formData.append('buy_details', this.form.buyDetails || '');
+          formData.append('attended_event', this.form.attendedEvent);
+          formData.append('event_count', this.form.eventCount || '');
+          formData.append('allow_conversation_history', this.form.allowConversationHistory);
+          formData.append('accept_lgpd', this.form.acceptLgpd);
 
-        console.log("[2] Criando FormData");
-        const formData = new FormData();
-        
-        formData.append('full_name', this.form.fullName);
-        formData.append('email', this.form.email);
-        formData.append('cpf', this.form.cpf.replace(/\D/g, ''));
-        formData.append('rg', this.form.rg.replace(/\D/g, ''));
-        formData.append('buy', this.form.buy);
-        formData.append('buy_details', this.form.buyDetails || '');
-        formData.append('attended_event', this.form.attendedEvent);
-        formData.append('event_count', this.form.eventCount || '');
-        formData.append('allow_conversation_history', this.form.allowConversationHistory);
-        formData.append('accept_lgpd', this.form.acceptLgpd);
+          this.form.selectedSocials.forEach(social => {
+            formData.append(`social_links[${social}]`, this.form.socialLinks[social] || '');
+          });
 
-        this.form.selectedSocials.forEach(social => {
-          formData.append(`social_links[${social}]`, this.form.socialLinks[social] || '');
-        });
+          for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append('documents', fileInput.files[i]);
+          }
 
-        for (let i = 0; i < fileInput.files.length; i++) {
-          formData.append('documents', fileInput.files[i]);
+          console.log("[3] Preparando requisição");
+          this.statusMessage = "Enviando dados para validação...";
+          let accessToken = localStorage.getItem("access");
+          
+          const makeRequest = async () => {
+            console.log("[4] Enviando para o backend");
+            this.statusMessage = "Validando identificação...";
+            const headers = {
+              'Authorization': `Bearer ${accessToken}`
+            };
+            
+            return await fetch('http://localhost:8000/api/v1/quiz/formulario/', {
+              method: 'POST',
+              body: formData,
+              headers: headers
+            });
+          };
+
+          console.log("[5] Fazendo requisição principal"); 
+          let response = await makeRequest();
+          console.log("[6] Resposta recebida:", response.status);
+
+          if (response.status === 401) {
+            console.log("[7] Tentando refresh token");
+            this.statusMessage = "Atualizando sessão e revalidando...";
+            const refreshToken = localStorage.getItem("refresh");
+            const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refresh: refreshToken }),
+            });
+
+            if (refreshResponse.ok) {
+              const data = await refreshResponse.json();
+              localStorage.setItem("access", data.access);
+              accessToken = data.access;
+
+              response = await makeRequest();
+            } else {
+              this.errorMessage = "Sessão expirada. Faça login novamente.";
+              this.loading = false;
+              return;
+            }
+          }
+
+          const result = await response.json();
+          console.log("[8] Resultado completo:", result);
+          this.statusMessage = "Concluído!";
+
+
+          if (response.ok) {
+            this.successMessage = "Documentos validados e recebidos com sucesso!";
+            console.log("Resposta completa do servidor:", result);
+            
+            if (result.validation_result) {
+              console.log("Detalhes da validação:", {
+                valid: result.validation_result.valid,
+                message: result.validation_result.message
+              });
+            }
+            
+            this.resetForm();
+          } else {
+            if (result.validation_details) {
+              this.errorMessage = `Validação falhou: ${result.validation_details}`;
+            } else {
+              this.errorMessage = result?.error || "Erro ao enviar o formulário.";
+            }
+            
+            console.error("Erro detalhado:", result);
+          }
+        } catch (error) {
+          console.error("Erro completo:", error);
+          this.errorMessage = error.message || "Erro inesperado. Tente novamente.";
+        } finally {
+          this.loading = false;
+          console.log("[9] Processo finalizado"); 
         }
-
-        console.log("[3] Preparando requisição");
-        this.statusMessage = "Enviando dados para validação...";
+      },
+      resetForm() {
+        this.form = {
+          fullName: "",
+          email: "",
+          cpf: "",
+          rg: "", 
+          buy: "",
+          buyDetails: "",
+          attendedEvent: "",
+          eventCount: "",
+          selectedSocials: [],
+          socialLinks: {},
+          allowConversationHistory: false,
+          acceptLgpd: false,
+        };
+        if (this.$refs.documentFile) {
+          this.$refs.documentFile.value = "";
+        }
+      },
+      openModal() {
+        this.showModal = true;
+      },
+      closeModal() {
+        this.showModal = false;
+      },
+      async checkTwitterStatus() {
+      try {
         let accessToken = localStorage.getItem("access");
         
         const makeRequest = async () => {
-          console.log("[4] Enviando para o backend");
-          this.statusMessage = "Validando identificação...";
           const headers = {
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
           };
           
-          return await fetch('http://localhost:8000/api/v1/quiz/formulario/', {
-            method: 'POST',
-            body: formData,
-            headers: headers
+          return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/status/', {
+            headers: headers,
+            credentials: 'include'
           });
         };
 
-        console.log("[5] Fazendo requisição principal"); 
         let response = await makeRequest();
-        console.log("[6] Resposta recebida:", response.status);
 
         if (response.status === 401) {
-          console.log("[7] Tentando refresh token");
-          this.statusMessage = "Atualizando sessão e revalidando...";
+          console.log("[Twitter Status] Token expirado, tentando refresh...");
           const refreshToken = localStorage.getItem("refresh");
           const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ refresh: refreshToken }),
+            credentials: 'include'
           });
 
           if (refreshResponse.ok) {
             const data = await refreshResponse.json();
             localStorage.setItem("access", data.access);
             accessToken = data.access;
-
+            console.log("[Twitter Status] Token atualizado, repetindo requisição...");
+            
             response = await makeRequest();
           } else {
-            this.errorMessage = "Sessão expirada. Faça login novamente.";
-            this.loading = false;
+            console.log("[Twitter Status] Sessão expirada ao verificar status");
+            this.errorMessage = "Sua sessão expirou. Por favor, faça login novamente.";
             return;
           }
         }
 
         const result = await response.json();
-        console.log("[8] Resultado completo:", result);
-        this.statusMessage = "Concluído!";
-
 
         if (response.ok) {
-          this.successMessage = "Documentos validados e recebidos com sucesso!";
-          console.log("Resposta completa do servidor:", result);
+          console.log("[Twitter Status] Resposta OK:", result);
+          this.isTwitterLinked = result.linked || false;
+          this.twitterUsername = result.username || '';
           
-          if (result.validation_result) {
-            console.log("Detalhes da validação:", {
-              valid: result.validation_result.valid,
-              message: result.validation_result.message
-            });
-          }
-          
-          this.resetForm();
-        } else {
-          if (result.validation_details) {
-            this.errorMessage = `Validação falhou: ${result.validation_details}`;
-          } else {
-            this.errorMessage = result?.error || "Erro ao enviar o formulário.";
-          }
-          
-          console.error("Erro detalhado:", result);
+        
         }
       } catch (error) {
-        console.error("Erro completo:", error);
-        this.errorMessage = error.message || "Erro inesperado. Tente novamente.";
+        console.error("[Twitter Status] Erro completo:", error);
+        this.errorMessage = "Erro inesperado ao verificar status";
       } finally {
         this.loading = false;
-        console.log("[9] Processo finalizado"); 
       }
     },
-    resetForm() {
-      this.form = {
-        fullName: "",
-        email: "",
-        cpf: "",
-        rg: "", 
-        buy: "",
-        buyDetails: "",
-        attendedEvent: "",
-        eventCount: "",
-        selectedSocials: [],
-        socialLinks: {},
-        allowConversationHistory: false,
-        acceptLgpd: false,
-      };
-      if (this.$refs.documentFile) {
-        this.$refs.documentFile.value = "";
-      }
     },
-    openModal() {
-      this.showModal = true;
-    },
-    closeModal() {
-      this.showModal = false;
-    },
-    async checkTwitterStatus() {
-    try {
-      let accessToken = localStorage.getItem("access");
-      
-      const makeRequest = async () => {
-        const headers = {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        };
+    mounted() {
+
+      this.resetForm();
+      this.checkExistingEntry();
+      this.pollingInterval = setInterval(this.checkExistingEntry, 30000); 
+      this.checkExistingEntry();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('twitter_linked')) {
+        this.isTwitterLinked = true;
+        this.twitterUsername = urlParams.get('username');
         
-        return await fetch('http://localhost:8000/api/v1/quiz/auth/twitter/status/', {
-          headers: headers,
-          credentials: 'include'
-        });
-      };
-
-      let response = await makeRequest();
-
-      if (response.status === 401) {
-        console.log("[Twitter Status] Token expirado, tentando refresh...");
-        const refreshToken = localStorage.getItem("refresh");
-        const refreshResponse = await fetch("http://localhost:8000/chat/refresh/", {
-          method: "POST",
-          headers: { 
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh: refreshToken }),
-          credentials: 'include'
-        });
-
-        if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          localStorage.setItem("access", data.access);
-          accessToken = data.access;
-          console.log("[Twitter Status] Token atualizado, repetindo requisição...");
-          
-          response = await makeRequest();
-        } else {
-          console.log("[Twitter Status] Sessão expirada ao verificar status");
-          this.errorMessage = "Sua sessão expirou. Por favor, faça login novamente.";
-          return;
-        }
-      }
-
-      const result = await response.json();
-
-      if (response.ok) {
-        console.log("[Twitter Status] Resposta OK:", result);
-        this.isTwitterLinked = result.linked || false;
-        this.twitterUsername = result.username || '';
+        window.history.replaceState({}, document.title, window.location.pathname);
         
-       
+        this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
       }
-    } catch (error) {
-      console.error("[Twitter Status] Erro completo:", error);
-      this.errorMessage = "Erro inesperado ao verificar status";
-    } finally {
-      this.loading = false;
-    }
-  },
-  },
-  mounted() {
-
-    this.resetForm();
-
-    this.checkExistingEntry();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('twitter_linked')) {
-      this.isTwitterLinked = true;
-      this.twitterUsername = urlParams.get('username');
       
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      this.successMessage = `Conta @${this.twitterUsername} vinculada com sucesso!`;
-    }
-    
-    this.checkTwitterStatus();
-  }
-};
-</script>
+      this.checkTwitterStatus();
+    },
+    beforeDestroy() {
+      clearInterval(this.pollingInterval);
+    },
+  };
+  </script>
 
 <style scoped>
 

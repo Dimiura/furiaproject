@@ -370,7 +370,9 @@ class QuizEntryCheckView(generics.RetrieveAPIView):
                 serializer = QuizEntrySerializer(entry)
                 return Response({
                     'exists': True,
-                    'entry': serializer.data
+                    'entry': serializer.data,
+                    'fan_level': entry.fan_level, 
+                    'fan_score': entry.fan_score
                 })
             return Response({'exists': False})
         except Exception as e:
