@@ -170,23 +170,180 @@
 </template>
 
 <script>
-  import {
-    marked
-  } from "marked";
+import { marked } from "marked";
 
-  export default {
+export default {
   data() {
     return {
       messages: [],
       userInput: "",
       isTyping: false, 
       typingTimeout: null,
-      isInputFixed:false,
+      isInputFixed: false,
       heightContainerFull: false,
       chatId: null,
+      errorMessage: "",
     };
   },
   methods: {
+    async handleTokenRefresh() {
+      try {
+        const refreshToken = localStorage.getItem("refresh");
+        if (!refreshToken) {
+          console.error("Nenhum refresh token disponível");
+          return false;
+        }
+
+        const response = await fetch("http://localhost:8000/chat/refresh/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          localStorage.removeItem("access");
+          localStorage.removeItem("refresh");
+          return false;
+        }
+
+        const data = await response.json();
+        localStorage.setItem("access", data.access);
+        return true;
+      } catch (error) {
+        console.error("Erro ao atualizar token:", error);
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        return false;
+      }
+    },
+
+    async makeAuthenticatedRequest(url, options = {}) {
+      let accessToken = localStorage.getItem("access");
+      
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+
+      let response = await fetch(url, { ...options, headers, credentials: 'include' });
+
+      if (response.status === 401) {
+        const refreshSuccess = await this.handleTokenRefresh();
+        if (refreshSuccess) {
+          accessToken = localStorage.getItem("access");
+          headers.Authorization = `Bearer ${accessToken}`;
+          response = await fetch(url, { ...options, headers, credentials: 'include' });
+        } else {
+          throw new Error("Sessão expirada. Faça login novamente.");
+        }
+      }
+
+      return response;
+    },
+
+    async fetchChatHistory(chatId) {
+      const title = document.querySelector('.title'); 
+      if (title) {
+        title.style.display = 'none'; 
+      }
+
+      try {
+        const response = await this.makeAuthenticatedRequest(
+          `http://localhost:8000/chat/chat-history/${chatId}/`
+        );
+
+        if (!response.ok) {
+          throw new Error("Erro ao carregar histórico da conversa");
+        }
+
+        const data = await response.json();
+        this.messages = data.messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        }));
+      } catch (error) {
+        console.error("Erro ao carregar histórico da conversa:", error);
+        this.errorMessage = error.message;
+      }
+    },
+
+    async newChat() {
+      try {
+        const token = localStorage.getItem('access');
+        const response = await fetch("http://localhost:8000/chat/new-chat/", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error("Erro ao criar novo chat");
+        }
+        
+        const newChat = await response.json();
+        this.$router.push({ path: "/", query: { chatId: newChat.id } });
+        this.fetchRecentChats(); 
+      } catch (error) {
+        console.error("Erro ao criar novo chat:", error);
+      }
+    },
+
+    async sendMessage() {
+      if (this.isTyping || !this.userInput.trim()) return;
+
+      const userMessage = { role: "user", content: this.userInput };
+      this.messages.push(userMessage);
+      
+      const payload = {
+        messages: [...this.messages],
+        chat_id: this.chatId,
+      };
+      
+      this.userInput = "";
+      this.isTyping = true;
+      this.errorMessage = "";
+
+      try {
+        let response = await this.makeAuthenticatedRequest(
+          "http://localhost:8000/chat/",
+          {
+            method: "POST",
+            body: JSON.stringify(payload)
+          }
+        );
+
+        const data = await response.json();
+        
+        if (!this.chatId && data.chat_id) {
+          this.chatId = data.chat_id;
+          this.$router.push({ path: "/", query: { chatId: this.chatId } });
+        }
+
+        this.messages.push({ 
+          role: "assistant", 
+          content: data.reply 
+        });
+        
+      } catch (error) {
+        console.error("Erro:", error);
+        this.errorMessage = error.message;
+        this.messages.push({
+          role: "assistant",
+          content: error.message || "Erro ao conectar com o FURIA bot. Tente novamente.",
+        });
+      } finally {
+        this.isTyping = false;
+        this.$nextTick(() => {
+          const container = this.$refs.messagesContainer;
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+    },
+
     speak(text) {
       const synth = window.speechSynthesis;
       if (synth.speaking) {
@@ -197,131 +354,37 @@
       utterance.lang = "pt-BR"; 
       synth.speak(utterance);
     },
-    handleEnter(event) {
-    event.preventDefault(); 
-    this.sendMessage(); 
-    },
-    async fetchChatHistory(chatId) {
-      const title = document.querySelector('.title'); 
-        if (title) {
-            title.style.display = 'none'; 
-      }
 
-      try {
-        const response = await fetch(`http://localhost:8000/chat/chat-history/${chatId}/`);
-        if (!response.ok) {
-          throw new Error("Erro ao carregar histórico da conversa");
-        }
-        const data = await response.json();
-        this.messages = data.messages.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-        }));
-      } catch (error) {
-        console.error("Erro ao carregar histórico da conversa:", error);
-      }
-    },
-    async createNewChat() {
-      try {
-        const response = await fetch("http://localhost:8000/chat/new-chat/", {
-          method: "POST",
-        });
-        if (!response.ok) {
-          throw new Error("Erro ao criar nova conversa");
-        }
-        const data = await response.json();
-        this.chatId = data.id;
-        this.$router.push({ path: "/", query: { chatId: this.chatId } });
-      } catch (error) {
-        console.error("Erro ao criar nova conversa:", error);
-      }
-    },
-    async sendMessage() {
-
-      const title = document.querySelector('.title'); 
-        if (title) {
-            title.style.display = 'none'; 
-      }
-
-        if (this.isTyping || !this.userInput.trim()) return;
-
-        const userMessage = { role: "user", content: this.userInput };
-        this.messages.push(userMessage);
-        const payload = {
-            messages: [...this.messages],
-            chat_id: this.chatId,
-        };
-        this.userInput = "";
-        this.isTyping = true;
-
-        try {
-            const response = await fetch("http://localhost:8000/chat/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                throw new Error("Erro ao enviar mensagem");
-            }
-
-            const data = await response.json();
-
-            if (!this.chatId) {
-                this.chatId = data.chat_id;
-                this.$router.push({ path: "/", query: { chatId: this.chatId } });
-            }
-
-            this.messages.push({ role: "assistant", content: data.reply });
-
-            await this.fetchChatHistory(this.chatId);
-        } catch (error) {
-            console.error("Erro ao enviar mensagem:", error);
-            this.messages.push({
-                role: "assistant",
-                content: "Erro ao conectar com o FURIA bot. Tente novamente.",
-            });
-        } finally {
-            this.isTyping = false;
-        }
-    },
     copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            
-        }).catch(err => {
-            console.error("Erro ao copiar texto: ", err);
-        });
+      navigator.clipboard.writeText(text).then(() => {
+        // Opcional: mostrar feedback ao usuário
+      }).catch(err => {
+        console.error("Erro ao copiar texto: ", err);
+      });
     },
-    startTypingEffect(message) {
-      setTimeout(() => {
-        this.isTyping = false; 
-        this.messages.push({ role: "assistant", content: message });
-        this.$nextTick(() => {
-          const container = this.$refs.messagesContainer;
-          container.scrollTop = container.scrollHeight;
-        });
-      }, 2000);
+
+    handleEnter(event) {
+      event.preventDefault(); 
+      this.sendMessage(); 
     },
-    
+
     parseMarkdown(text) {
       return marked(text);
     },
   },
   watch: {
-      "$route.query.chatId": {
-        immediate: true,
-        handler(newChatId) {
-          this.chatId = newChatId;
-          if (this.chatId) {
-            this.fetchChatHistory(this.chatId);
-          } else {
-            this.messages = [];
-          }
-        },
+    "$route.query.chatId": {
+      immediate: true,
+      handler(newChatId) {
+        this.chatId = newChatId;
+        if (this.chatId) {
+          this.fetchChatHistory(this.chatId);
+        } else {
+          this.messages = [];
+        }
       },
     },
+  },
   mounted() {
     const chatId = this.$route.query.chatId;
     if (chatId) {

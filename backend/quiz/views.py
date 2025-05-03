@@ -1,6 +1,8 @@
 import json
 import logging
 import requests
+from django.db.models import Q
+from chat.models import ChatHistory, Message
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.conf import settings
@@ -12,6 +14,7 @@ from .serializers import QuizEntrySerializer, FanCardSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +60,13 @@ def evaluate_fan_level(quiz_data, twitter_data, chat_message_count=0, allow_conv
         score += SCORE_WEIGHTS['purchases']
     
     if allow_conversation_history:  
-        chat_msg_count = int(chat_message_count) if str(chat_message_count).isdigit() else 0
-        if chat_msg_count >= 10:
+        logger.info(f"Verificando mensagens de chat: {chat_message_count} mensagens (precisa de 3)")
+        if chat_message_count >= 3:
             criteria_met['chat_messages'] = True
             score += SCORE_WEIGHTS['chat_messages']['bonus']
+            logger.info(f"Bônus de 20 pontos aplicado! Novo score: {score}")
+        else:
+            logger.info(f"Bônus NÃO aplicado - mensagens insuficientes")
 
     if score > 100:
         return 'doido_por_furia', min(score, 120)
@@ -78,7 +84,52 @@ class QuizEntryCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        instance = serializer.save()
+        self.calculate_initial_score(instance)
+
+    def calculate_initial_score(self, instance):
+        # Inicializa os dados
+        twitter_data = {}
+        chat_message_count = 0
+        
+        # Verifica interações no Twitter (50 pontos)
+        if hasattr(self.request.user, 'twitter_account'):
+            twitter_account = self.request.user.twitter_account
+            twitter_data = {
+                'interactions_count': 1 if twitter_account.extra_data.get('interactions_count', 0) > 0 else 0
+            }
+        
+        # Conta mensagens do chat se permitido (20 pontos)
+        if instance.allow_conversation_history:
+            try:
+                from chat.models import Message
+                chat_message_count = Message.objects.filter(
+                    Q(chat__user=self.request.user) | Q(chat__user__isnull=True),
+                    role='user'
+                ).count()
+            except Exception as e:
+                logger.error(f"Erro ao contar mensagens: {str(e)}")
+
+        # Prepara dados do quiz
+        quiz_data = {
+            'event_count': instance.event_count,
+            'buy': instance.buy,
+            'buy_details': instance.buy_details,
+            'attended_event': 'yes' if instance.event_count and instance.event_count > 0 else 'no'
+        }
+
+        # Calcula o score
+        fan_level, fan_score = evaluate_fan_level(
+            quiz_data,
+            twitter_data,
+            chat_message_count,
+            instance.allow_conversation_history
+        )
+        
+        # Atualiza a instância
+        instance.fan_level = fan_level
+        instance.fan_score = fan_score
+        instance.save()
 
     def post(self, request, *args, **kwargs):
         try:
@@ -136,14 +187,16 @@ class QuizEntryCreateView(generics.CreateAPIView):
 
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
+            
             instance = serializer.save()
+            self.calculate_initial_score(instance)
 
             for file in files:
                 logger.info(f"Arquivo processado: {file.name}")
 
             return Response({
                 "success": True,
-                "data": serializer.data,
+                "data": QuizEntrySerializer(instance).data,
                 "fan_level": instance.fan_level,
                 "fan_score": instance.fan_score
             }, status=status.HTTP_201_CREATED)
@@ -166,25 +219,36 @@ class QuizEntryCreateView(generics.CreateAPIView):
             text = ""
             logger.info(f"Processando arquivo: {file.name}, tipo: {file.content_type}")
             
+            file.seek(0)
+            
             if file.content_type == 'application/pdf':
                 try:
-                    images = convert_from_bytes(file.read(), dpi=300)  # Aumente o DPI para melhor qualidade
+                    pdf_content = file.read()
+                    if not pdf_content:
+                        raise ValueError("Arquivo PDF vazio ou corrompido")
+                        
+                    images = convert_from_bytes(pdf_content, dpi=200) 
                     for i, img in enumerate(images):
                         logger.info(f"Processando página {i+1} do PDF")
-                        text += pytesseract.image_to_string(img, lang="por")
+                        try:
+                            text += pytesseract.image_to_string(img, lang="por")
+                        except Exception as ocr_error:
+                            logger.error(f"Erro OCR na página {i+1}: {str(ocr_error)}")
+                            raise ValueError(f"Erro ao ler texto da página {i+1}")
                 except Exception as pdf_error:
-                    logger.error(f"Erro ao processar PDF: {str(pdf_error)}")
-                    raise ValueError("Erro ao processar o arquivo PDF")
+                    logger.error(f"Erro ao processar PDF: {str(pdf_error)}", exc_info=True)
+                    raise ValueError("Erro ao processar o arquivo PDF - verifique se é um PDF válido")
             else:
                 try:
+                    file.seek(0)  
                     image = Image.open(file)
                     text = pytesseract.image_to_string(image, lang="por")
                 except Exception as img_error:
-                    logger.error(f"Erro ao processar imagem: {str(img_error)}")
-                    raise ValueError("Erro ao processar o arquivo de imagem")
+                    logger.error(f"Erro ao processar imagem: {str(img_error)}", exc_info=True)
+                    raise ValueError("Erro ao processar o arquivo de imagem - formato não suportado ou corrompido")
             
             logger.info(f"Texto extraído (primeiros 100 chars): {text[:100]}...")
-            return text
+            return text.strip() 
         except Exception as e:
             logger.error(f"Erro ao extrair texto: {str(e)}", exc_info=True)
             raise
@@ -324,6 +388,7 @@ class QuizEntryUpdateView(generics.UpdateAPIView):
     
     def perform_update(self, serializer):
         instance = serializer.save()
+        print(f"Valor de allow_conversation_history antes de recalculcar: {instance.allow_conversation_history}")
         self.recalculate_fan_score(instance)
 
     def recalculate_fan_score(self, instance):
@@ -332,8 +397,14 @@ class QuizEntryUpdateView(generics.UpdateAPIView):
             twitter_data = self.request.user.twitter_account.extra_data
         
         chat_message_count = 0
-        if hasattr(self.request.user, 'chathistory'):
-            chat_message_count = self.request.user.chathistory.message_count
+        try:
+            from chat.models import Message
+            chat_message_count = Message.objects.filter(
+                Q(chat__user=self.request.user) | Q(chat__user__isnull=True),
+                role='user'
+            ).count()
+        except Exception as e:
+            logger.error(f"Erro ao contar mensagens: {str(e)}")
 
         quiz_data = {
             'event_count': instance.event_count,
@@ -342,7 +413,6 @@ class QuizEntryUpdateView(generics.UpdateAPIView):
             'attended_event': 'yes' if instance.event_count and instance.event_count > 0 else 'no'
         }
 
-        logger.info(f"Recalculando score - allow_history: {instance.allow_conversation_history}, chat_msgs: {chat_message_count}")
 
         fan_level, fan_score = evaluate_fan_level(
             quiz_data,
@@ -371,7 +441,6 @@ def refresh_twitter_validation(request):
         
         twitter_data = twitter_account.extra_data
         
-        # Verifica se há qualquer interação
         has_interaction = twitter_data.get('interactions_count', 0) > 0
         
         fan_level, fan_score = evaluate_fan_level(
@@ -383,8 +452,7 @@ def refresh_twitter_validation(request):
             twitter_data={
                 'interactions_count': 1 if has_interaction else 0  # 1 ou 0, não importa a quantidade
             },
-            chat_message_count=request.user.chathistory.message_count if hasattr(request.user, 'chathistory') else 0,
-            allow_conversation_history=quiz_entry.allow_conversation_history
+            
         )
         
         quiz_entry.fan_level = fan_level
@@ -437,11 +505,11 @@ class FanCardView(generics.RetrieveUpdateAPIView):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        
         data = serializer.data
+
         if data.get('photo'):
             data['photo'] = request.build_absolute_uri(data['photo'])
-        
+
         return Response(data)
 
     def perform_update(self, serializer):

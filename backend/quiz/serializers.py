@@ -9,7 +9,6 @@ class TwitterAccountSerializer(serializers.ModelSerializer):
 
 
 class FanCardSerializer(serializers.ModelSerializer):
-    photo = serializers.SerializerMethodField()
 
     class Meta:
         model = FanCard

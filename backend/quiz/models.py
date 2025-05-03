@@ -17,7 +17,7 @@ class FanCard(models.Model):
         related_name='fan_card'
     )
     photo = models.ImageField(
-        upload_to='fan_cards/',
+        upload_to='fan_photos/',
         null=True,
         blank=True
     )

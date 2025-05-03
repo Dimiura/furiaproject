@@ -1,8 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
 from django.conf import settings
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 import google.generativeai as genai
 from django.db.models import Count, Q
 from rest_framework import serializers
@@ -16,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 
 
 class ChatBotView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         messages = request.data.get('messages', [])
@@ -49,18 +48,20 @@ class ChatBotView(APIView):
         url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8000",  
+            "X-Title": "FURIA Bot"  
         }
         payload = {
             "model": "openai/gpt-3.5-turbo",  
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_message},
+                *[msg for msg in messages if msg['role'] in ['user', 'assistant']],  
             ]
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(url, headers=headers, json=payload, timeout=30)  
             response.raise_for_status()
             data = response.json()
 
@@ -68,17 +69,25 @@ class ChatBotView(APIView):
 
             if chat_id:
                 try:
-                    chat = ChatHistory.objects.get(pk=chat_id)
+                    chat = ChatHistory.objects.get(pk=chat_id, user=request.user)  
                 except ChatHistory.DoesNotExist:
                     return Response({"error": "Conversa não encontrada"}, status=404)
             else:
-                chat = ChatHistory.objects.create(user_message=user_message, bot_response=bot_response)
+                chat = ChatHistory.objects.create(
+                    user=request.user,  
+                    user_message=user_message, 
+                    bot_response=bot_response
+                )
 
             Message.objects.create(chat=chat, role="user", content=user_message)
             Message.objects.create(chat=chat, role="assistant", content=bot_response)
 
+        except requests.exceptions.RequestException as e:  
+            bot_response = f"Erro na comunicação com o servidor: {str(e)}"
+            return Response({"reply": bot_response, "chat_id": chat_id if chat_id else None}, status=500)
         except Exception as e:
             bot_response = f"Erro ao gerar resposta: {str(e)}"
+            return Response({"reply": bot_response, "chat_id": chat_id if chat_id else None}, status=500)
 
         return Response({"reply": bot_response, "chat_id": chat.id})
     
@@ -89,27 +98,28 @@ class ChatHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'user_message', 'bot_response', 'timestamp']
 
 class ChatHistoryDetailView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated] 
 
     def get(self, request, pk):
         try:
-            chat = ChatHistory.objects.get(pk=pk)
+            chat = ChatHistory.objects.get(pk=pk, user=request.user)  # Filtrar por usuário
             messages = chat.messages.order_by('timestamp').values('role', 'content', 'timestamp')
             return Response({"id": chat.id, "messages": list(messages)})
         except ChatHistory.DoesNotExist:
             return Response({"error": "Chat not found"}, status=404)
 
 class NewChatView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        return Response({"id": None})
-    
+        chat = ChatHistory.objects.create(user=request.user)  # Criar chat associado ao usuário
+        return Response({"id": chat.id})
+        
 class RecentChatHistoryView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        recent_chats = ChatHistory.objects.order_by('-timestamp')[:5]
+        recent_chats = ChatHistory.objects.filter(user=request.user).order_by('-timestamp')[:5]  
         data = [
             {
                 "id": chat.id,

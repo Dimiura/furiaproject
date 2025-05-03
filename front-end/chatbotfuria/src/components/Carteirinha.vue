@@ -49,7 +49,7 @@
           </div>
         </div>
         
-        <div class="modal-actions">
+        <div class="modal-actions align-items-center">
         <button class="btn btn-primary" @click="savePhoto" :disabled="uploading">
           <span v-if="uploading">
             <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -62,7 +62,7 @@
         <button class="btn btn-download" @click="downloadCard">
           <i class="bi bi-download"></i> Baixar
         </button>
-        <button class="btn btn-close" @click="closeModal">Fechar</button>
+        <button class="btn " @click="closeModal">Fechar</button>
       </div>
     </div>
   </div>
@@ -81,7 +81,8 @@
         photoUrl: null,
         photoFile: null,
         uploading: false,
-        issueDate: new Date().toLocaleDateString('pt-BR')
+        issueDate: new Date().toLocaleDateString('pt-BR'),
+        previousPhotoUrl: null
         };
     },
     computed: {
@@ -104,11 +105,14 @@
       const file = event.target.files[0];
       if (file) {
         this.photoFile = file;
-        this.photoUrl = URL.createObjectURL(file);
+        this.photozUrl = URL.createObjectURL(file);
       }
     },
     async savePhoto() {
-      if (!this.photoFile) return;
+      if (!this.photoFile) {
+        console.log('Nenhuma foto selecionada');
+        return;
+      }
       
       this.uploading = true;
       
@@ -116,21 +120,69 @@
         const formData = new FormData();
         formData.append('photo', this.photoFile);
         
-        const response = await fetch(
-          'http://localhost:8000/api/v1/quiz/fan-card/',
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              'Authorization': `Bearer ${localStorage.getItem('access')}`
-            }
+        // Primeira tentativa com o token atual
+        let response = await fetch('http://localhost:8000/api/v1/quiz/fan-card/', {
+          method: 'PUT',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access')}`
           }
-        );
+        });
+
+        console.log('Resposta do servidor:', response)
+
+        // Se não autorizado, tenta renovar o token
+        if (response.status === 401) {
+          const refreshToken = localStorage.getItem('refresh');
+          if (!refreshToken) {
+            throw new Error('Sessão expirada - faça login novamente');
+          }
+
+          const refreshResponse = await fetch('http://localhost:8000/api/v1/token/refresh/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refresh: refreshToken })
+          });
+
+          if (!refreshResponse.ok) {
+            throw new Error('Falha ao renovar sessão');
+          }
+
+          const { access } = await refreshResponse.json();
+          localStorage.setItem('access', access);
+
+          // Tenta novamente com o novo token
+          response = await fetch('http://localhost:8000/api/v1/quiz/fan-card/', {
+            method: 'PUT',
+            body: formData,
+            headers: {
+              'Authorization': `Bearer ${access}`
+            }
+          });
+
+          console.log('Resposta do servidor:', response)
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || errorData.message || 'Erro ao salvar foto');
+        }
+
+        const data = await response.json();
+        if (data.photo) {
+          this.photoUrl = data.photo;
+          console.log('Foto atualizada:', data.photo); // Log para depuração
+        }
         
-        this.$toast.success('Foto da carteirinha salva com sucesso!');
       } catch (error) {
         console.error('Erro ao salvar foto:', error);
-        this.$toast.error('Erro ao salvar foto da carteirinha');
+        
+        // Redireciona para login se for problema de autenticação
+        if (error.message.includes('token') || error.message.includes('sessão')) {
+          this.$router.push('/login');
+        }
       } finally {
         this.uploading = false;
       }
@@ -145,22 +197,25 @@
             }
           }
         );
+
         
-        if (response.data.photo) {
-          this.photoUrl = `http://localhost:8000${response.data.photo}`;
+        const data = await response.json();
+        if (data.photo) {
+          this.photoUrl = data.photo;
         }
       } catch (error) {
         console.error('Erro ao carregar foto:', error);
       }
     },
-      handlePhotoUpload(event) {
+    async handlePhotoUpload(event) {
         const file = event.target.files[0];
         if (file) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.photoPreview = e.target.result;
-          };
-          reader.readAsDataURL(file);
+          if (this.photoUrl && this.photoUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(this.photoUrl);
+          }
+          
+          this.photoFile = file;
+          this.photoUrl = URL.createObjectURL(file);
         }
       },
       downloadCard() {
@@ -171,7 +226,7 @@
           link.click();
         });
       },
-      closeModal() {
+      closeModal() {  
         this.$emit('close');
       }
     },

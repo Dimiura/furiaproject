@@ -75,11 +75,23 @@ export default {
     },
     async fetchRecentChats() {
       try {
-        const response = await fetch("http://localhost:8000/chat/recent-chats/");
+        const token = localStorage.getItem('access');
+        const response = await fetch("http://localhost:8000/chat/recent-chats/", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
         if (!response.ok) {
           throw new Error("Erro ao buscar histórico recente");
         }
-        this.recentChats = await response.json();
+        const data = await response.json();
+        this.recentChats = data.map(chat => ({
+          id: chat.id,
+          summary: chat.summary || "Sem mensagens ainda",
+          timestamp: chat.timestamp
+        }));
       } catch (error) {
         console.error("Erro ao buscar histórico recente:", error);
       }

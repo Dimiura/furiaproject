@@ -1,10 +1,12 @@
 from django.urls import path, include
+from django.conf.urls.static import static
 from .views import QuizEntryCreateView, QuizEntryCheckView, QuizEntryUpdateView, refresh_twitter_validation, FanCardView
 from .views_oauth import (
     twitter_auth_start,
     twitter_auth_callback,
     check_twitter_status,
 )
+from django.conf import settings
 from . import views
 
 urlpatterns = [
@@ -19,4 +21,5 @@ urlpatterns = [
     path('update-entry/', QuizEntryUpdateView.as_view(), name='quiz-update-entry'),
     path('refresh-validation/', refresh_twitter_validation, name='refresh-validation'),
     path('fan-card/', FanCardView.as_view(), name='fan-card-detail'),
-]
+] 
+
