@@ -60,7 +60,6 @@ def twitter_auth_start(request):
 @api_view(['GET'])
 @csrf_exempt
 def twitter_auth_callback(request: HttpRequest):
-    """Processa o callback do Twitter"""
     try:
         code = request.GET.get('code')
         state = request.GET.get('state')
@@ -71,7 +70,6 @@ def twitter_auth_callback(request: HttpRequest):
             print("Missing params in callback")
             return HttpResponseRedirect('http://localhost:3000/error?reason=missing_params')
 
-        # Recupera o code_verifier da sessão
         code_verifier = None
         if 'twitter_verifiers' in request.session and state in request.session['twitter_verifiers']:
             code_verifier = request.session['twitter_verifiers'].pop(state)
@@ -83,7 +81,6 @@ def twitter_auth_callback(request: HttpRequest):
 
         token_url = 'https://api.twitter.com/2/oauth2/token'
         
-        # Codifique as credenciais para Basic Auth
         client_id = settings.SOCIALACCOUNT_PROVIDERS['twitter']['APP']['client_id']
         client_secret = settings.SOCIALACCOUNT_PROVIDERS['twitter']['APP']['secret']
         auth_string = f"{client_id}:{client_secret}"
@@ -113,14 +110,40 @@ def twitter_auth_callback(request: HttpRequest):
             headers=headers
         ).json()
         
-        TwitterLinkedAccount.objects.update_or_create(
-            user_id=state,
-            defaults={
-                'twitter_id': user_info['data']['id'],
-                'twitter_username': user_info['data']['username'],
-                'access_token': token_data['access_token'],
-                'extra_data': user_info
+        existing_account = TwitterLinkedAccount.objects.filter(user_id=state).first()
+        
+        defaults = {
+            'twitter_id': user_info['data']['id'],
+            'twitter_username': user_info['data']['username'],
+            'access_token': token_data['access_token']
+        }
+        
+        if existing_account:
+            defaults['extra_data'] = {
+                **existing_account.extra_data,  
+                'auth_info': {                
+                    'id': user_info['data']['id'],
+                    'username': user_info['data']['username'],
+                    'name': user_info['data'].get('name', '')
+                }
             }
+        else:
+            defaults['extra_data'] = {
+                'auth_info': {
+                    'id': user_info['data']['id'],
+                    'username': user_info['data']['username'],
+                    'name': user_info['data'].get('name', '')
+                },
+                'interactions': {
+                    'last_updated': None,
+                    'count': 0,
+                    'tweets': []
+                }
+            }
+        
+        account, created = TwitterLinkedAccount.objects.update_or_create(
+            user_id=state,
+            defaults=defaults
         )
         
         return HttpResponseRedirect('http://localhost:3000/?twitter_linked=true&username=' + user_info['data']['username'])
