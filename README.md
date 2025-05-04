@@ -1,27 +1,28 @@
-Furia Challenge
+# Furia Challenge
 
-Visão Geral
+## Visão Geral
 Este projeto combina um frontend em Vue.js com um backend em Django REST Framework, utilizando Docker para conteinerização e gerenciamento do ambiente.
 
-Pré-requisitos
-Docker (instalação)
+## Pré-requisitos
+- Docker ([instalação](https://docs.docker.com/get-docker/))
+- Docker Compose
+- Node.js (opcional para desenvolvimento fora do container)
+- Python 3.x (opcional para desenvolvimento fora do container)
 
-Docker Compose
-
-Node.js (opcional para desenvolvimento fora do container)
-
-Python 3.x (opcional para desenvolvimento fora do container)
-
-Estrutura do Projeto
+## Estrutura do Projeto
 
 - Raiz : furiaproject/
 - backend: furiaproject/backend/
 - front-end: furiaproject/front-end/chatbotfuria/
 
-Configuração Inicial
-git clone 
-cd furiaproject
+## Configuração Inicial
+```bash
+git clone [URL_DO_REPOSITÓRIO]
+cd furiaproject 
+```
 
+
+## Backend
 Crie arquivos .env na raiz de front-end e na raiz de backend para criar as váriaveis de ambiente.
 
 
@@ -56,7 +57,8 @@ Backend: http://localhost:8000
 
 Admin Django: http://localhost:8000/admin
 
-Projeto em si:
+
+## Projeto
 
 Eu utilizei um formato de chatbot com sistema de autenticação "login e register" para utilizar na 2° parte do challenge.
 
