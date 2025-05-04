@@ -14,16 +14,9 @@ Python 3.x (opcional para desenvolvimento fora do container)
 
 Estrutura do Projeto
 
-├── backend/               # Aplicação Django
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── ...
-├── front-end/chatbotfuria/              # Aplicação Vue.js
-│   ├── Dockerfile
-│   ├── package.json
-│   └── ...
-├── docker-compose.yml     # Configuração dos containers
-└── README.md
+- Raiz : furiaproject/
+- backend: furiaproject/backend/
+- front-end: furiaproject/front-end/chatbotfuria/
 
 Configuração Inicial
 git clone 
