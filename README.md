@@ -40,10 +40,13 @@ TWITTER_CALLBACK_URL= http://localhost:8000/auth/twitter/callback/
 DEBUG = 'TRUE'
 
 no arquivo front-end coloque as URLS locais que você irá utilizar, por exemplo localhost:3000.
+
 VITE_API_BASE=http://localhost:8000
+
 DEFAULT_URL=http://localhost:3000
 
 Execução do projeto:
+
 docker-compose up --build
 
 Acesse:
@@ -56,12 +59,19 @@ Admin Django: http://localhost:8000/admin
 Projeto em si:
 
 Eu utilizei um formato de chatbot com sistema de autenticação "login e register" para utilizar na 2° parte do challenge.
+
 A aplicação salva históricos de conversações por usuário, podendo ser utilizado na 2° etapa do challenge que é a "Know your fan".
+
 Existem 5 níveis de torcedores:
+
 Iniciante
+
 Fã Casual/Regular
+
 Grande fã
+
 Fanático (garante acesso a uma carteirinha FURIA)
+
 DOIDO POR FURIA! (garante acesso a uma carteirinha FURIA) - nível mais alto.
 
 O bot também avalia suas compras, eventos visitados, interações do twitter (caso conta esteja vinculada) e traz um feedback do seu perfil de torcedor.
