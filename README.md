@@ -1,0 +1,73 @@
+Furia Challenge
+
+Visão Geral
+Este projeto combina um frontend em Vue.js com um backend em Django REST Framework, utilizando Docker para conteinerização e gerenciamento do ambiente.
+
+Pré-requisitos
+Docker (instalação)
+
+Docker Compose
+
+Node.js (opcional para desenvolvimento fora do container)
+
+Python 3.x (opcional para desenvolvimento fora do container)
+
+Estrutura do Projeto
+
+├── backend/               # Aplicação Django
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── ...
+├── front-end/chatbotfuria/              # Aplicação Vue.js
+│   ├── Dockerfile
+│   ├── package.json
+│   └── ...
+├── docker-compose.yml     # Configuração dos containers
+└── README.md
+
+Configuração Inicial
+git clone 
+cd furiaproject
+
+Crie arquivos .env na raiz de front-end e na raiz de backend para criar as váriaveis de ambiente.
+
+
+no arquivo back-end, coloque as chaves das API's tanto do twitter quanto da openai e a URL de callback do twitter
+
+OPENAI_API_KEY="sua-chave-aqui"
+TWITTER_CLIENT_ID=sua-chave-aqui
+TWITTER_CLIENT_SECRET=sua-chave-aqui
+TWITTER_BEARER_TOKEN=sua-chave-aqui
+TWITTER_CALLBACK_URL= http://localhost:8000/auth/twitter/callback/
+DEBUG = 'TRUE'
+
+no arquivo front-end coloque as URLS locais que você irá utilizar, por exemplo localhost:3000.
+VITE_API_BASE=http://localhost:8000
+DEFAULT_URL=http://localhost:3000
+
+Execução do projeto:
+docker-compose up --build
+
+Acesse:
+Frontend: http://localhost:3000
+
+Backend: http://localhost:8000
+
+Admin Django: http://localhost:8000/admin
+
+Projeto em si:
+
+Eu utilizei um formato de chatbot com sistema de autenticação "login e register" para utilizar na 2° parte do challenge.
+A aplicação salva históricos de conversações por usuário, podendo ser utilizado na 2° etapa do challenge que é a "Know your fan".
+Existem 5 níveis de torcedores:
+Iniciante
+Fã Casual/Regular
+Grande fã
+Fanático (garante acesso a uma carteirinha FURIA)
+DOIDO POR FURIA! (garante acesso a uma carteirinha FURIA) - nível mais alto.
+
+O bot também avalia suas compras, eventos visitados, interações do twitter (caso conta esteja vinculada) e traz um feedback do seu perfil de torcedor.
+
+ 
+
+
