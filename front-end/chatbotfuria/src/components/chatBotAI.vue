@@ -114,7 +114,7 @@
             <textarea 
               ref="userInput" 
               v-model="userInput" 
-              placeholder="Pergunte para o FuriosoBOT sobre a Furia CS..." 
+              :placeholder="dynamicPlaceholder"
               rows="1"
               @input="autoResize"  
               @keydown.enter.prevent="handleEnter"
@@ -183,7 +183,15 @@ export default {
       heightContainerFull: false,
       chatId: null,
       errorMessage: "",
+      isMobile: window.innerWidth <= 768
     };
+  },
+  computed: {
+    dynamicPlaceholder() {
+      return this.isMobile
+        ? "Digite aqui..."
+        : "Pergunte para o FuriosoBOT sobre a Furia CS...";
+    }
   },
   methods: {
     async handleTokenRefresh() {
@@ -662,6 +670,18 @@ export default {
     max-width: 100%;
     min-width: 100%;
     padding: 0 1rem;
+  }
+
+  .avatar{
+    display:none;
+  }
+
+  .chat-layout__content{
+    padding:0;
+  }
+
+  .chatbot-container{
+    padding:0;
   }
 
   .chatbot_container_full {

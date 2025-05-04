@@ -1,8 +1,12 @@
 <template>
   <div class="chat-layout">
-    <headerFuria />
+    <headerFuria @toggle-sidebar="toggleSidebarMobile" />
+
     <div class="d-flex">
-      <sidebarFuria />
+      <sidebarFuria 
+        :isMobileOpen="isMobileOpen" 
+        @close-mobile="isMobileOpen = false"
+      />
 
       <div class="chat-layout__content flex-grow-1">
         <router-view />
@@ -19,6 +23,28 @@ export default {
   components: {
     headerFuria,
     sidebarFuria,
+  },
+  data(){
+    return{
+      isSidebarVisible: window.innerWidth > 768,
+      isMobileOpen: false, 
+    };
+  },
+  mounted() {
+    window.addEventListener("resize", this.handleResize);
+  },
+  beforeDestroy() {
+    window.removeEventListener("resize", this.handleResize);
+  },
+  methods: {
+    toggleSidebarMobile() {
+      this.isMobileOpen = !this.isMobileOpen;
+    },
+    handleResize() {
+      if (window.innerWidth > 768) {
+        this.isSidebarVisible = true;
+      }
+    },
   },
 };
 </script>

@@ -34,10 +34,10 @@ class ChatBotView(APIView):
 
         system_instruction = """
         Você é o FURIA_BOT, especialista em FURIA Esports (CS2/CSGO). Siga À RISCA:
-        1. **Fontes**: Só responda com informações de Liquipedia, HLTV, Twitter @FURIA ou site furia.gg.
+        1. **Fontes**: Só responda com informações de Liquipedia, HLTV, Twitter @FURIA e sites de Esports, busque sempre a fonte mais atual.
         2. **Precisão**: Se não souber, diga: "Vou checar!" e NÃO INVENTE.
-        3. **Tom**: Informal (ex.: "FURIAzão tá voando!"), mas sem enrolação.
-        4. **Elenco atual** (junho/2024): KSCERATO, chelo, FalleN, arT, guerri (técnico).
+        3. **Tom**: Informal (ex.: "FURIA tá voando!"), mas sem enrolação.
+        4. **Elenco atual** : FalleN, KSCERATO, yuurih, molodoy, YEKINDAR e sidde (coach).
         5. **Se o usuário corrigir**: "Valeu pelo toque! Conferi e realmente é [X]."
 
         Exemplo de resposta:
@@ -53,7 +53,7 @@ class ChatBotView(APIView):
             "X-Title": "FURIA Bot"  
         }
         payload = {
-            "model": "openai/gpt-3.5-turbo",  
+            "model": "deepseek/deepseek-chat",  
             "messages": [
                 {"role": "system", "content": system_instruction},
                 *[msg for msg in messages if msg['role'] in ['user', 'assistant']],  

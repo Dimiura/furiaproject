@@ -13,7 +13,7 @@ import json
 import traceback
 from .models import TwitterLinkedAccount
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponseRedirect, HttpRequest
+from django.http import HttpResponseRedirect, HttpRequest, HttpResponse
 
 User = get_user_model()
 
@@ -27,7 +27,6 @@ def generate_pkce():
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def twitter_auth_start(request):
-    """Inicia o fluxo OAuth2 com PKCE"""
     try:
         code_verifier, code_challenge = generate_pkce()
         state = str(request.user.id)
@@ -145,8 +144,27 @@ def twitter_auth_callback(request: HttpRequest):
             user_id=state,
             defaults=defaults
         )
+
+        account.fetch_twitter_data(force_refresh=True)
         
-        return HttpResponseRedirect('http://localhost:3000/?twitter_linked=true&username=' + user_info['data']['username'])
+        return HttpResponse(f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Twitter Auth Success</title>
+                <script>
+                    window.opener.postMessage({{
+                        type: 'twitter_auth_success',
+                        username: '{user_info['data']['username']}'
+                    }}, 'http://localhost:3000');
+                    window.close();
+                </script>
+            </head>
+            <body>
+                <p>Autenticação concluída com sucesso! Você pode fechar esta janela.</p>
+            </body>
+            </html>
+        """)
         
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")

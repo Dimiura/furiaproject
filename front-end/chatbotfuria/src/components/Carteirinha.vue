@@ -120,7 +120,6 @@
         const formData = new FormData();
         formData.append('photo', this.photoFile);
         
-        // Primeira tentativa com o token atual
         let response = await fetch('http://localhost:8000/api/v1/quiz/fan-card/', {
           method: 'PUT',
           body: formData,
@@ -131,7 +130,6 @@
 
         console.log('Resposta do servidor:', response)
 
-        // Se não autorizado, tenta renovar o token
         if (response.status === 401) {
           const refreshToken = localStorage.getItem('refresh');
           if (!refreshToken) {
@@ -153,7 +151,6 @@
           const { access } = await refreshResponse.json();
           localStorage.setItem('access', access);
 
-          // Tenta novamente com o novo token
           response = await fetch('http://localhost:8000/api/v1/quiz/fan-card/', {
             method: 'PUT',
             body: formData,
@@ -173,13 +170,12 @@
         const data = await response.json();
         if (data.photo) {
           this.photoUrl = data.photo;
-          console.log('Foto atualizada:', data.photo); // Log para depuração
+          console.log('Foto atualizada:', data.photo); 
         }
         
       } catch (error) {
         console.error('Erro ao salvar foto:', error);
         
-        // Redireciona para login se for problema de autenticação
         if (error.message.includes('token') || error.message.includes('sessão')) {
           this.$router.push('/login');
         }

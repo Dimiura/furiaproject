@@ -44,6 +44,12 @@ class QuizEntry(models.Model):
     allow_conversation_history = models.BooleanField(default=False)
     accept_lgpd = models.BooleanField()
   
+    fan_description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Descrição personalizada do fã"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     fan_level = models.CharField(

@@ -13,7 +13,8 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1"
 SECRET_KEY = 'django-insecure-+$ia_hpnm*n(dkes#e$@pwmn5@mei5+4aaosfj*&!cu&$k-2y%'
 
 DEBUG = True
@@ -59,6 +60,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'

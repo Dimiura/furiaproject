@@ -1,12 +1,16 @@
 <template>
     <header class="headerFuria">
-        <div class="container">
-            <div class="container-fluid">
+           <div class="container-fluid d-flex justify-content-between align-items-center">
+                <button 
+                    class="btn text-white d-md-none" 
+                    @click="$emit('toggle-sidebar')"
+                >
+                    <i class="bi bi-list" style="font-size: 1.5rem;"></i>
+                </button>
                 <div class="d-flex justify-content-between text-center align-items-center">
                     <nav class="nav-link d-flex gap-3 align-items-center d-flex ">
                         <a href="https://www.furia.gg/" class="text-white text-decoration-none text-uppercase " target="_blank"><i>Site Furia</i></a>
-                        <button class="theme-toggle" @click="toggleTheme" v-html="isDarkMode ? '<i class=\'bi bi-moon-fill\'></i>' : '<i class=\'bi bi-brightness-alt-high-fill\'></i>'">
-                        </button>
+                       
                         <button class="btn know-your-fan" @click="handleButtonClick">
                             {{ isQuizPage ? "ChatBot" : "Know your fan" }}
                             </button>
@@ -16,7 +20,6 @@
                         fetchpriority="high"></a>
                 </div>
             </div>
-        </div>
     </header>
 </template>
 
@@ -68,6 +71,14 @@ export default {
 
 
 <style>
+
+    .hamburger-menu {
+    font-size: 24px;
+    color: white;
+    background: none;
+    border: none;
+    }
+
     .headerFuria {
         height: 90px;
         background-color: #000000;

@@ -39,6 +39,7 @@ class QuizEntrySerializer(serializers.ModelSerializer):
             'fan_level': {'read_only': True},
             'fan_score': {'read_only': True},
             'allow_conversation_history': {'required': False, 'default': False},
+            'fan_description': {'read_only': True},
         }
 
     def validate(self, data):

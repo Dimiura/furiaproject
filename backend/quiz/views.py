@@ -88,29 +88,54 @@ class QuizEntryCreateView(generics.CreateAPIView):
         self.calculate_initial_score(instance)
 
     def calculate_initial_score(self, instance):
-        # Inicializa os dados
         twitter_data = {}
         chat_message_count = 0
+
+        try:
+            twitter_account = TwitterLinkedAccount.objects.get(user=self.request.user)
+            
+            try:
+                if not twitter_account.fetch_twitter_data(force_refresh=True):
+                    logger.warning("Falha ao atualizar dados do Twitter")
+            except Exception as e:
+                logger.error(f"Erro ao buscar dados do Twitter: {str(e)}")
+            
+            twitter_data = {
+                'interactions_count': twitter_account.extra_data.get('interactions_count', 0)
+            }
+            
+            logger.info(f"Dados do Twitter obtidos: {twitter_data}")
+        except TwitterLinkedAccount.DoesNotExist:
+            logger.info("Usuário não possui conta do Twitter vinculada")
+        except Exception as e:
+            logger.error(f"Erro ao acessar conta do Twitter: {str(e)}")
         
-        # Verifica interações no Twitter (50 pontos)
         if hasattr(self.request.user, 'twitter_account'):
             twitter_account = self.request.user.twitter_account
-            twitter_data = {
-                'interactions_count': 1 if twitter_account.extra_data.get('interactions_count', 0) > 0 else 0
-            }
+            if hasattr(twitter_account, 'extra_data') and twitter_account.extra_data:
+                twitter_data = {
+                    'interactions_count': twitter_account.extra_data.get('interactions_count', 0)
+                }
+            else:
+                try:
+                    twitter_account.fetch_twitter_data()
+                    twitter_data = {
+                        'interactions_count': twitter_account.extra_data.get('interactions_count', 0)
+                    }
+                except Exception as e:
+                    logger.error(f"Erro ao buscar dados do Twitter: {str(e)}")
         
-        # Conta mensagens do chat se permitido (20 pontos)
         if instance.allow_conversation_history:
             try:
                 from chat.models import Message
                 chat_message_count = Message.objects.filter(
-                    Q(chat__user=self.request.user) | Q(chat__user__isnull=True),
+                    chat__user=self.request.user,
                     role='user'
                 ).count()
+                logger.info(f"Total de mensagens encontradas: {chat_message_count}")
             except Exception as e:
                 logger.error(f"Erro ao contar mensagens: {str(e)}")
 
-        # Prepara dados do quiz
         quiz_data = {
             'event_count': instance.event_count,
             'buy': instance.buy,
@@ -118,7 +143,6 @@ class QuizEntryCreateView(generics.CreateAPIView):
             'attended_event': 'yes' if instance.event_count and instance.event_count > 0 else 'no'
         }
 
-        # Calcula o score
         fan_level, fan_score = evaluate_fan_level(
             quiz_data,
             twitter_data,
@@ -126,7 +150,6 @@ class QuizEntryCreateView(generics.CreateAPIView):
             instance.allow_conversation_history
         )
         
-        # Atualiza a instância
         instance.fan_level = fan_level
         instance.fan_score = fan_score
         instance.save()
@@ -191,6 +214,10 @@ class QuizEntryCreateView(generics.CreateAPIView):
             instance = serializer.save()
             self.calculate_initial_score(instance)
 
+            dynamic_description = self.generate_fan_description(instance)
+            instance.fan_description = dynamic_description
+            instance.save()
+
             for file in files:
                 logger.info(f"Arquivo processado: {file.name}")
 
@@ -198,7 +225,8 @@ class QuizEntryCreateView(generics.CreateAPIView):
                 "success": True,
                 "data": QuizEntrySerializer(instance).data,
                 "fan_level": instance.fan_level,
-                "fan_score": instance.fan_score
+                "fan_score": instance.fan_score,
+                "fan_description": dynamic_description
             }, status=status.HTTP_201_CREATED)
 
         except json.JSONDecodeError as e:
@@ -213,6 +241,97 @@ class QuizEntryCreateView(generics.CreateAPIView):
                 {"error": f"Erro ao processar sua solicitação: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def generate_fan_description(self, instance):
+        try:
+            user_data = {
+                'full_name': instance.full_name,
+                'event_count': instance.event_count,
+                'buy_details': instance.buy_details,
+                'has_twitter': hasattr(instance.user, 'twitter_account')
+            }
+
+            prompt = f"""
+            Crie uma descrição criativa para um torcedor nível {instance.fan_level} com estes dados:
+            - Nome: {user_data['full_name']}
+            - Eventos participados: {user_data['event_count']}
+            - Produtos comprados: {user_data['buy_details']}
+            - Twitter vinculado: {'Sim' if user_data['has_twitter'] else 'Não'}
+
+            Regras:
+            1. Use no máximo 5 frases
+            2. Seja criativo e engajador
+            3. Adapte ao nível do torcedor
+            4. Inclua emojis relevantes
+            5. Formato: "Você é [descrição]! [Motivação/curiosidade]"
+            """
+
+            headers = {
+                "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": "openai/gpt-3.5-turbo",  
+                "response_format": {"type": "text"},
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Você é um especialista em criar descrições criativas para torcedores."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.7,
+                "max_tokens": 100
+            }
+
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
+            response.raise_for_status()
+
+            result = response.json()
+            description = result['choices'][0]['message']['content'].strip()
+            
+            instance.fan_description = description
+            instance.save()
+            
+            logger.info(f"Descrição gerada para {instance.user}: {description}")
+            return description
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Erro na requisição para a IA: {str(e)}")
+            fallback = self.get_fallback_description(instance.fan_level)
+            instance.fan_description = fallback
+            instance.save()
+            return fallback
+            
+        except Exception as e:
+            logger.error(f"Erro geral ao gerar descrição: {str(e)}", exc_info=True)
+            fallback = self.get_fallback_description(instance.fan_level)
+            instance.fan_description = fallback
+            instance.save()
+            return fallback
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar descrição: {str(e)}")
+            return self.get_fallback_description(instance.fan_level)
+
+    def get_fallback_description(self, fan_level):
+        descriptions = {
+            'doido_por_furia': "Você é DOIDO POR FURIA! Um super fã que não perde um evento! 🎉🔥",
+            'fanatico': "Você é fanático pela FURIA! Acompanha tudo e participa ativamente! ⚡",
+            'big_fan': "Você é um grande fã! Continue acompanhando a FURIA! 👏",
+            'regular_fan': "Você é um fã regular, mas pode se envolver mais! 💪",
+            'not_fan': "Você está começando sua jornada como fã da FURIA! Bem-vindo! 🎮"
+        }
+        return descriptions.get(fan_level, "Seu nível de torcedor está sendo avaliado.")
 
     def extract_text_from_file(self, file):
         try:
@@ -368,7 +487,8 @@ class QuizEntryCheckView(generics.RetrieveAPIView):
                     'exists': True,
                     'entry': serializer.data,
                     'fan_level': entry.fan_level, 
-                    'fan_score': entry.fan_score
+                    'fan_score': entry.fan_score,
+                    'fan_description': entry.fan_description
                 })
             return Response({'exists': False})
         except Exception as e:
@@ -388,8 +508,8 @@ class QuizEntryUpdateView(generics.UpdateAPIView):
     
     def perform_update(self, serializer):
         instance = serializer.save()
-        print(f"Valor de allow_conversation_history antes de recalculcar: {instance.allow_conversation_history}")
         self.recalculate_fan_score(instance)
+        self.generate_fan_description(instance)
 
     def recalculate_fan_score(self, instance):
         twitter_data = {}
@@ -427,6 +547,31 @@ class QuizEntryUpdateView(generics.UpdateAPIView):
         instance.fan_score = fan_score
         instance.save()
 
+    def generate_fan_description(self, instance):
+        try:
+            from .views import QuizEntryCreateView
+            create_view = QuizEntryCreateView()
+            description = create_view.generate_fan_description(instance)
+            instance.fan_description = description
+            instance.save()
+            return description
+        except Exception as e:
+            logger.error(f"Erro ao atualizar descrição do fã: {str(e)}")
+            fallback = self.get_fallback_description(instance.fan_level)
+            instance.fan_description = fallback
+            instance.save()
+            return fallback
+
+    def get_fallback_description(self, fan_level):
+        descriptions = {
+            'doido_por_furia': "Você é DOIDO POR FURIA! Um super fã que não perde um evento! 🎉🔥",
+            'fanatico': "Você é fanático pela FURIA! Acompanha tudo e participa ativamente! ⚡",
+            'big_fan': "Você é um grande fã! Continue acompanhando a FURIA! 👏",
+            'regular_fan': "Você é um fã regular, mas pode se envolver mais! 💪",
+            'not_fan': "Você está começando sua jornada como fã da FURIA! Bem-vindo! 🎮"
+        }
+        return descriptions.get(fan_level, "Seu nível de torcedor está sendo avaliado.")
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -450,7 +595,7 @@ def refresh_twitter_validation(request):
                 'buy_details': quiz_entry.buy_details
             },
             twitter_data={
-                'interactions_count': 1 if has_interaction else 0  # 1 ou 0, não importa a quantidade
+                'interactions_count': 1 if has_interaction else 0  
             },
             
         )
@@ -484,15 +629,6 @@ def refresh_twitter_validation(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-def get_fan_level_description(level):
-    descriptions = {
-        'doido_por_furia': "Você é DOIDO POR FURIA! Um super fã que interage em todas as plataformas!",
-        'fanatico': "Você é fanático pela FURIA! Acompanha tudo e participa ativamente!",
-        'big_fan': "Você é um grande fã! Acompanha a FURIA regularmente.",
-        'regular_fan': "Você é um fã regular, mas pode se envolver mais!",
-        'not_fan': "Você está começando agora como fã da FURIA."
-    }
-    return descriptions.get(level, "")
 
 class FanCardView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
