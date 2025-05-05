@@ -20,7 +20,7 @@ Este projeto combina um frontend em Vue.js com um backend em Django REST Framewo
 git clone [URL_DO_REPOSITÓRIO]
 cd furiaproject
 
-docker-compose up --build (Antes faça os passos de criar a .env abaixo e volte aqui) 
+docker-compose up --build (Antes, faça os passos de criar a .env abaixo e volte aqui) 
 
 Caso queira uma conta de admin, use python manage.py createsuperuser no container do backend
 ```
