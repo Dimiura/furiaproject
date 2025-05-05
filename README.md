@@ -48,9 +48,7 @@ VITE_API_BASE=http://localhost:8000
 
 DEFAULT_URL=http://localhost:3000
 
-Execução do projeto:
 
-docker-compose up --build
 
 ## Acessos
 Frontend: http://localhost:3000
