@@ -28,19 +28,17 @@ Crie arquivos .env na raiz de front-end e na raiz de backend para criar as vári
 
 no arquivo back-end, coloque as chaves das API's tanto do twitter quanto da openai e a URL de callback do twitter
 
-OPENAI_API_KEY="sua-chave-aqui"
+OPENAI_API_KEY="sua-chave-de-api-aqui"
 
-TWITTER_CLIENT_ID=sua-chave-aqui
+TWITTER_CLIENT_ID=sua-chave-de-api-aqui
 
-TWITTER_CLIENT_SECRET=sua-chave-aqui
+TWITTER_CLIENT_SECRET=sua-chave-de-api-aqui
 
-TWITTER_BEARER_TOKEN=sua-chave-aqui
+TWITTER_BEARER_TOKEN=sua-chave-de-api-aqui
 
-TWITTER_CALLBACK_URL= http://localhost:8000/auth/twitter/callback/
 
-DEBUG = 'TRUE'
 
-no arquivo front-end coloque as URLS locais que você irá utilizar, por exemplo localhost:3000.
+no arquivo front-end coloque as URLS locais que você irá utilizar
 
 VITE_API_BASE=http://localhost:8000
 
