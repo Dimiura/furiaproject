@@ -30,7 +30,7 @@ Caso queira uma conta de admin, use python manage.py createsuperuser no containe
 Crie arquivos .env na raiz de front-end e na raiz de backend para criar as váriaveis de ambiente.
 
 
-no arquivo back-end, coloque as chaves das API's tanto do twitter quanto da openai e a URL de callback do twitter
+no arquivo back-end, coloque as chaves das API's tanto do twitter quanto da openai 
 
 OPENAI_API_KEY="sua-chave-de-api-aqui"
 
