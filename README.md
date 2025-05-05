@@ -79,5 +79,8 @@ DOIDO POR FURIA! (garante acesso a uma carteirinha FURIA) - nível mais alto.
 O bot também avalia suas compras, eventos visitados, interações do twitter (caso conta esteja vinculada) e traz um feedback do seu perfil de torcedor.
 
  
+## Observação importante
+
+A api gratuita do X limita para buscas recentes a cada 15 minutos, portanto, caso comece dar unauthorized nos terminais/consoles, é normal, a cada 15 minutos 1 req pode ser feita.
 
 
