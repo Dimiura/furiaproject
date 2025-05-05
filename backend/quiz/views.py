@@ -400,18 +400,32 @@ class QuizEntryCreateView(generics.CreateAPIView):
             }
 
             prompt = f"""
-            Você é um validador de documentos. Analise os dados abaixo e retorne um JSON com:
-            - "valid": boolean (True se documentos são válidos)
-            - "validation_details": string (explicação da validação)
-            - "matches": boolean (True se documentos batem com dados cadastrais)
+            Você é um validador de documentos oficiais. Analise os dados abaixo e retorne um JSON com:
+            - "valid": boolean (True apenas se os documentos são documentos oficiais válidos E as informações batem)
+            - "validation_details": string (explicação detalhada da validação)
+            - "document_type": string (tipo de documento identificado)
 
             DADOS PARA ANÁLISE:
             {json.dumps(analysis_data, indent=2)}
 
-            REGRAS:
-            1. Documentos devem conter pelo menos 3 informações que batam com os dados cadastrais
-            2. CPF/RG devem ser legíveis nos documentos
-            3. Nome deve aparecer claramente
+            REGRAS ESTRITAS:
+            1. O texto deve ser claramente de um documento oficial (RG, CPF, CNH, comprovante, etc.)
+            2. Deve conter pelo menos 3 informações que batam com os dados cadastrais
+            3. CPF/RG devem ser legíveis e corresponder aos dados do formulário
+            4. Nome completo deve aparecer claramente e corresponder
+            5. Se o texto for de um tipo de documento não relevante (como currículo, carta, etc.), considere como inválido
+
+            FORMATO DE RESPOSTA ESPERADO:
+            {{
+                "valid": boolean,
+                "validation_details": string,
+                "document_type": string,
+                "matches": {{
+                    "nome": boolean,
+                    "cpf": boolean,
+                    "rg": boolean
+                }}
+            }}
             """
 
             headers = {
@@ -425,14 +439,14 @@ class QuizEntryCreateView(generics.CreateAPIView):
                 "messages": [
                     {
                         "role": "system",
-                        "content": "Você é um especialista em validação de documentos. Siga rigorosamente o formato solicitado."
+                        "content": "Você é um especialista rigoroso em validação de documentos oficiais. Rejeite qualquer documento que não seja claramente um documento oficial válido."
                     },
                     {
                         "role": "user", 
                         "content": prompt
                     }
                 ],
-                "temperature": 0.1,  
+                "temperature": 0.1,  # Mais determinístico
                 "max_tokens": 1000
             }
 
@@ -450,10 +464,25 @@ class QuizEntryCreateView(generics.CreateAPIView):
                 
                 try:
                     validation_data = json.loads(message_content)
+                    
+                    # Verifica adicionalmente se o tipo de documento é válido
+                    valid_document_types = ["rg", "cpf", "cnh", "comprovante", "documento oficial"]
+                    document_type = validation_data.get("document_type", "").lower()
+                    
+                    is_valid_type = any(doc_type in document_type for doc_type in valid_document_types)
+                    
+                    if not is_valid_type:
+                        return {
+                            "valid": False,
+                            "validation_details": f"Tipo de documento inválido: {document_type}. Esperado documento oficial."
+                        }
+                    
                     return {
-                        "valid": validation_data.get("valid", False),
-                        "validation_details": validation_data.get("validation_details", "Validação falhou sem detalhes")
+                        "valid": validation_data.get("valid", False) and is_valid_type,
+                        "validation_details": validation_data.get("validation_details", "Validação falhou sem detalhes"),
+                        "matches": validation_data.get("matches", {})
                     }
+
                 except json.JSONDecodeError:
                     logger.error("Resposta da IA não é JSON válido")
                     return {
