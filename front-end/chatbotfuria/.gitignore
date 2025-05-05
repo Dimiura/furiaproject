@@ -7,9 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-*.sqlite3
+backend/.sqlite3
 
-.env
+backend/.env
+front-end/chatbotfuria/.env
 
 node_modules
 .DS_Store

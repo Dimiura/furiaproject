@@ -136,7 +136,7 @@
         </form>
 
         <div v-else-if="hasExistingEntry && currentEntry" class="row justify-content-center">
-          <div class="col-12 col-md-10 col-lg-8">
+          <div class="col-12 col-md-12 col-lg-12">
             <div class="bg-transparent border-0 mb-4">
               <div class="card-body p-0">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3">
