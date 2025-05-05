@@ -33,7 +33,7 @@ Crie arquivos .env na raiz de front-end e na raiz de backend para criar as vári
 no arquivo back-end, coloque as chaves das API's tanto do twitter quanto da openai 
 - Você pode conseguir suas keys do twitter no X Developer Portal
 - A outra key de Openai você pode conseguir em:
-https://openai.com/api/ ou pode utilizar keys gratuitas em https://openrouter.ai/
+https://openai.com/api/ ou pode utilizar keys gratuitas em https://openrouter.ai/ e então, apenas coloque ela sendo openrouter ou openai no campo abaixo no lugar de "sua-chave-de-api-aqui"
 
 OPENAI_API_KEY="sua-chave-de-api-aqui"
 
