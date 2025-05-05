@@ -49,7 +49,7 @@ Execução do projeto:
 
 docker-compose up --build
 
-Acesse:
+## Acessos
 Frontend: http://localhost:3000
 
 Backend: http://localhost:8000
