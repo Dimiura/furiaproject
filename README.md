@@ -18,7 +18,8 @@ Este projeto combina um frontend em Vue.js com um backend em Django REST Framewo
 ## Configuração Inicial
 ```bash
 git clone [URL_DO_REPOSITÓRIO]
-cd furiaproject 
+cd furiaproject
+docker-compose up --build 
 ```
 
 
