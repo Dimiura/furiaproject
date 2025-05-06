@@ -285,7 +285,7 @@ class QuizEntryCreateView(generics.CreateAPIView):
                     }
                 ],
                 "temperature": 0.7,
-                "max_tokens": 100
+                "max_tokens": 300
             }
 
             response = requests.post(
@@ -446,7 +446,7 @@ class QuizEntryCreateView(generics.CreateAPIView):
                         "content": prompt
                     }
                 ],
-                "temperature": 0.1,  # Mais determinístico
+                "temperature": 0.1,  
                 "max_tokens": 1000
             }
 
@@ -465,20 +465,13 @@ class QuizEntryCreateView(generics.CreateAPIView):
                 try:
                     validation_data = json.loads(message_content)
                     
-                    # Verifica adicionalmente se o tipo de documento é válido
-                    valid_document_types = ["rg", "cpf", "cnh", "comprovante", "documento oficial"]
                     document_type = validation_data.get("document_type", "").lower()
                     
-                    is_valid_type = any(doc_type in document_type for doc_type in valid_document_types)
                     
-                    if not is_valid_type:
-                        return {
-                            "valid": False,
-                            "validation_details": f"Tipo de documento inválido: {document_type}. Esperado documento oficial."
-                        }
+                
                     
                     return {
-                        "valid": validation_data.get("valid", False) and is_valid_type,
+                        "valid": validation_data.get("valid", False),
                         "validation_details": validation_data.get("validation_details", "Validação falhou sem detalhes"),
                         "matches": validation_data.get("matches", {})
                     }
