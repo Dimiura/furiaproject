@@ -390,9 +390,9 @@ class QuizEntryCreateView(generics.CreateAPIView):
             
             analysis_data = {
                 "form_data": {
-                    "nome": data.get('full_name', '').strip(),
-                    "cpf": data.get('cpf', '').strip(),
-                    "rg": data.get('rg', '').strip(),
+                    "nome": (data.get('full_name') or '').strip(),
+                    "cpf": (data.get('cpf') or '').strip(),
+                    "rg": (data.get('rg') or '').strip(),
                     "eventos_comparecidos": int(data.get('event_count', 0)),
                     "compras_realizadas": int(data.get('buy_details', 0))
                 },
@@ -612,15 +612,15 @@ def refresh_twitter_validation(request):
         
         fan_level, fan_score = evaluate_fan_level(
             quiz_data={
-                'event_count': quiz_entry.event_count,
-                'buy': quiz_entry.buy,
-                'buy_details': quiz_entry.buy_details
+                'event_count': quiz_entry.event_count or 0,
+                'buy': (quiz_entry.buy or '').strip().lower(),
+                'buy_details': (quiz_entry.buy_details or '').strip().lower()
             },
             twitter_data={
-                'interactions_count': 1 if has_interaction else 0  
+                'interactions_count': 1 if has_interaction else 0
             },
-            
         )
+
         
         quiz_entry.fan_level = fan_level
         quiz_entry.fan_score = fan_score
