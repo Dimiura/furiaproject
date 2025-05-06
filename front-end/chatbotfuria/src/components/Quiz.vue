@@ -294,7 +294,7 @@
   </template>
 
   <script>
-    import Carteirinha from './Carteirinha.vue';
+  import Carteirinha from './Carteirinha.vue';
 
   export default {
     components:{

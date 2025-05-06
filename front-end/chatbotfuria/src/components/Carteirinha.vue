@@ -215,13 +215,7 @@
           </div>
         </div>
 
-        <div v-if="showFanCardModal">
-            <Carteirinha 
-              :showModal="showFanCardModal" 
-              :userData="currentEntry"
-              @close="showFanCardModal = false"
-            />
-        </div>        
+  
 
       <div v-if="showEditModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.7)">
             <div class="modal-dialog modal-dialog-centered">
@@ -294,12 +288,9 @@
   </template>
 
   <script>
-    import Carteirinha from './Carteirinha.vue';
 
   export default {
-    components:{
-      Carteirinha
-    },
+    
     name: "Quiz",
     data() {
       return {
