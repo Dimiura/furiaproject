@@ -43,6 +43,8 @@ TWITTER_CLIENT_SECRET=sua-chave-de-api-aqui
 
 TWITTER_BEARER_TOKEN=sua-chave-de-api-aqui
 
+DEBUG = TRUE
+
 
 
 no arquivo front-end coloque as URLS locais que você irá utilizar
