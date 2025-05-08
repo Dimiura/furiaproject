@@ -164,7 +164,7 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 SOCIALACCOUNT_AUTO_SIGNUP = False
 
