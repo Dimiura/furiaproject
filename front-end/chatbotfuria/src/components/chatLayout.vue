@@ -19,6 +19,7 @@
 import headerFuria from "@/components/headerFuria.vue";
 import sidebarFuria from "@/components/sidebarFuria.vue";
 
+
 export default {
   components: {
     headerFuria,

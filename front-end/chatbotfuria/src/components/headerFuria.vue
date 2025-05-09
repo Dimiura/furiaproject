@@ -24,6 +24,9 @@
 </template>
 
 <script>
+
+const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
+
 export default {
     data() {
         return {
@@ -51,7 +54,7 @@ export default {
             try {
                 const refreshToken = localStorage.getItem("refresh");
                 if (refreshToken) {
-                    await fetch("http://localhost:8000/auth/logout/", {
+                    await fetch(`${baseURL}/auth/logout/`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ refresh: refreshToken }),

@@ -153,7 +153,7 @@ SOCIALACCOUNT_PROVIDERS = {
             'client_id': os.getenv('TWITTER_CLIENT_ID'),
             'secret': os.getenv('TWITTER_CLIENT_SECRET'),
             'key': '',  
-            'callback_url': 'http://localhost:8000/auth/twitter/callback/'
+            'callback_url': os.getenv'TWITTER_CALLBACK_URL'
         },
         'SCOPE': ['tweet.read', 'users.read'],
         'AUTH_PARAMS': {

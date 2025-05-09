@@ -76,6 +76,7 @@
    
 <script>
 import html2canvas from 'html2canvas';
+const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
 
 export default {
   props: {
@@ -116,7 +117,7 @@ export default {
     async loadFanCardPhoto() {
       try {
         const response = await fetch(
-          'http://localhost:8000/api/v1/quiz/fan-card/',
+          `${baseURL}/api/v1/quiz/fan-card/`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('access')}`
@@ -150,7 +151,7 @@ export default {
         formData.append('photo', this.photoFile);
 
         const response = await fetch(
-          'http://localhost:8000/api/v1/quiz/fan-card/',
+          `${baseURL}/api/v1/quiz/fan-card/`,
           {
             method: 'PATCH',
             headers: {

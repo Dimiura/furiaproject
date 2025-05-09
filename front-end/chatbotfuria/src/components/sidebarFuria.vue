@@ -47,6 +47,8 @@
 
 <script>
 
+const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
+
 export default {
   props: {
     visible: {
@@ -110,7 +112,7 @@ export default {
       throw new Error('Nenhum token de acesso encontrado');
     }
 
-    const response = await fetch("http://localhost:8000/chat/recent-chats/", {
+    const response = await fetch(`${baseURL}/chat/recent-chats/`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -165,7 +167,7 @@ async handleTokenRefresh() {
       return false;
     }
 
-    const response = await fetch("http://localhost:8000/chat/refresh/", {
+    const response = await fetch(`${baseURL}/chat/refresh/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

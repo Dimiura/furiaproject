@@ -171,6 +171,7 @@
 
 <script>
 import { marked } from "marked";
+const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
 
 export default {
   data() {
@@ -202,7 +203,7 @@ export default {
           return false;
         }
 
-        const response = await fetch("http://localhost:8000/chat/refresh/", {
+        const response = await fetch(`${baseURL}/chat/refresh/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh: refreshToken }),
@@ -259,7 +260,7 @@ export default {
 
       try {
         const response = await this.makeAuthenticatedRequest(
-          `http://localhost:8000/chat/chat-history/${chatId}/`
+          `${baseURL}/chat/chat-history/${chatId}/`
         );
 
         if (!response.ok) {
@@ -280,7 +281,7 @@ export default {
     async newChat() {
       try {
         const token = localStorage.getItem('access');
-        const response = await fetch("http://localhost:8000/chat/new-chat/", {
+        const response = await fetch(`${baseURL}/chat/new-chat/`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -317,7 +318,7 @@ export default {
 
       try {
         let response = await this.makeAuthenticatedRequest(
-          "http://localhost:8000/chat/",
+          `${baseURL}/chat/`,
           {
             method: "POST",
             body: JSON.stringify(payload)

@@ -45,6 +45,8 @@
   </style>
 
 <script>
+  const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
+
   export default {
     data() {
       return {
@@ -57,7 +59,7 @@
     methods: {
       async register() {
         try {
-          const response = await fetch("http://localhost:8000/auth/register/", {
+          const response = await fetch(`${baseURL}/auth/register/`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"

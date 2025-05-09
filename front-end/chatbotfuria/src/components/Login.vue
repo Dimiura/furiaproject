@@ -44,6 +44,8 @@
   </style>
   
   <script>
+  const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
+
   export default {
     data() {
       return {
@@ -55,7 +57,7 @@
     methods: {
       async login() {
         try {
-          const response = await fetch("http://localhost:8000/auth/login/", {
+          const response = await fetch(`${baseURL}/auth/login/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: this.username, password: this.password }),

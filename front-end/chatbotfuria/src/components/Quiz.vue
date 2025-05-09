@@ -297,6 +297,8 @@
 
   <script>
   import Carteirinha from './Carteirinha.vue';
+  const baseURL = import.meta.env.VUE_APP_VITE_API_BASE;
+  const baseURLFront = import.meta.env.DEFAULT_URL;
 
   export default {
     components:{
@@ -376,7 +378,7 @@
         try {
           this.loadingCheck = true;
           const response = await this.makeAuthenticatedRequest(
-            'http://localhost:8000/api/v1/quiz/check-entry/'
+            `${baseURL}/api/v1/quiz/check-entry/`
           );
 
           const data = await response.json();
@@ -392,7 +394,7 @@
 
             try {
               const twitterResponse = await this.makeAuthenticatedRequest(
-                'http://localhost:8000/api/v1/quiz/auth/twitter/status/'
+                `${baseURL}/api/v1/quiz/auth/twitter/status/`
               );
               const twitterData = await twitterResponse.json();
               this.isTwitterLinked = twitterData?.linked || false;
@@ -428,7 +430,7 @@
             return false;
           }
 
-          const response = await fetch("http://localhost:8000/chat/refresh/", {
+          const response = await fetch(`${baseURL}/chat/refresh/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refresh: refreshToken }),
@@ -479,7 +481,7 @@
       async loadChatHistory() {
         try {
           const response = await this.makeAuthenticatedRequest(
-            'http://localhost:8000/chat/history-count/'
+            `${baseURL}/chat/history-count/`
           );
 
           if (response.ok) {
@@ -551,7 +553,7 @@
         }
 
         const response = await this.makeAuthenticatedRequest(
-          'http://localhost:8000/api/v1/quiz/formulario/', 
+          `${baseURL}/api/v1/quiz/formulario/`, 
           {
             method: 'POST',
             body: formData
@@ -656,7 +658,7 @@
           console.log("Enviando payload:", payload); 
 
           const response = await this.makeAuthenticatedRequest(
-            'http://localhost:8000/api/v1/quiz/update-entry/',
+            `${baseURL}/api/v1/quiz/update-entry/`,
             {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -697,7 +699,7 @@
           this.statusMessage = "Atualizando dados do Twitter...";
           
           const response = await this.makeAuthenticatedRequest(
-            'http://localhost:8000/api/v1/quiz/refresh-validation/',
+            `${baseURL}/api/v1/quiz/refresh-validation/`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' }
@@ -742,7 +744,7 @@
           this.errorMessage = '';
 
           const response = await this.makeAuthenticatedRequest(
-            'http://localhost:8000/api/v1/quiz/auth/twitter/start/'
+            `${baseURL}/api/v1/quiz/auth/twitter/start/`
           );
 
           if (!response.ok) {
@@ -771,7 +773,7 @@
           );
           
           const messageHandler = (event) => {
-            if (event.origin !== 'http://localhost:3000') return;
+            if (event.origin !== `${baseURLFront}`) return;
             
             if (event.data.type === 'twitter_auth_success') {
               this.isTwitterLinked = true;
@@ -804,7 +806,7 @@
           
           try {
             const response = await this.makeAuthenticatedRequest(
-              'http://localhost:8000/api/v1/quiz/auth/twitter/status/'
+              `${baseURL}/api/v1/quiz/auth/twitter/status/`
             );
 
             if (!response.ok) {
