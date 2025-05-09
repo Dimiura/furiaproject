@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-por \
     libtesseract-dev \
-    libleptonica-dev
+    libleptonica-dev \
+    libpq-dev \
+    gcc
 
 RUN pip install watchdog
 
