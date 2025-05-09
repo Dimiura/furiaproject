@@ -5,7 +5,7 @@ services:
     env_file: ./backend/.env
     ports:
       - "8000:8000"
-    command: bash -c "python manage.py collectstatic --noinput && python manage.py migrate && python manage.py runserver 0.0.0.0:8080"
+    command: bash -c "python manage.py collectstatic --noinput && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app 
 
